@@ -1,4 +1,4 @@
-package br.com.luka.chat;
+package br.com.luka.chat.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;

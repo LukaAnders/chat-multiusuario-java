@@ -1,0 +1,4 @@
+br\com\luka\chat\Main.class
+br\com\luka\chat\server\AtendimentoCliente.class
+br\com\luka\chat\server\ServidorChat.class
+br\com\luka\chat\client\ClienteChat.class
