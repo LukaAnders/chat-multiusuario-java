@@ -1,49 +1,41 @@
 package br.com.luka.chat;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ServidorChat {
 
+    private static final Set<AtendimentoCliente> clientes =
+        ConcurrentHashMap.newKeySet();
+
+    public static void adicionarCliente(AtendimentoCliente cliente) {
+        clientes.add(cliente);
+    }
+
+    public static void removerCliente(AtendimentoCliente cliente) {
+        clientes.remove(cliente);
+    }
+
+    public static void transmitir(String mensagem) {
+        for (AtendimentoCliente cliente : clientes) {
+            cliente.enviar(mensagem);
+        }
+    }
+
     public static void main(String[] args) {
-        int porta = 5000;
+        try (ServerSocket servidor = new ServerSocket(5000)) {
+            System.out.println("Servidor iniciado na porta 5000");
 
-        try (ServerSocket servidor = new ServerSocket(porta)) {
-            System.out.println("Servidor iniciado na porta " + porta);
-            System.out.println("Aguardando um cliente...");
+            while (true) {
+                Socket conexao = servidor.accept();
 
-            try (
-                    Socket cliente = servidor.accept();
+                AtendimentoCliente atendimento =
+                    new AtendimentoCliente(conexao);
 
-                    BufferedReader entrada = new BufferedReader(
-                            new InputStreamReader(
-                                    cliente.getInputStream(),
-                                    StandardCharsets.UTF_8));
-
-                    PrintWriter saida = new PrintWriter(
-                            cliente.getOutputStream(),
-                            true,
-                            StandardCharsets.UTF_8)) {
-                System.out.println("Cliente conectado!");
-
-                String mensagem;
-
-                while ((mensagem = entrada.readLine()) != null) {
-                    if (mensagem.equalsIgnoreCase("/sair")) {
-                        saida.println("Conexao encerrada. Ate mais!");
-                        break;
-                    }
-
-                    System.out.println("Cliente disse: " + mensagem);
-                    saida.println("Servidor recebeu: " + mensagem);
-                }
-
-                System.out.println("Cliente desconectado.");
+                new Thread(atendimento).start();
             }
 
         } catch (IOException e) {

@@ -11,47 +11,67 @@ import java.util.Scanner;
 public class ClienteChat {
 
     public static void main(String[] args) {
-        String endereco = "localhost";
-        int porta = 5000;
+        try (Scanner teclado = new Scanner(System.in)) {
+            System.out.print("Digite seu nome: ");
+            String nome = teclado.nextLine().trim();
 
-        try (
-                Socket conexao = new Socket(endereco, porta);
+            if (nome.isBlank()) {
+                System.out.println("O nome nao pode ficar vazio.");
+                return;
+            }
+
+            try (
+                Socket conexao = new Socket("localhost", 5000);
 
                 BufferedReader entrada = new BufferedReader(
-                        new InputStreamReader(
-                                conexao.getInputStream(),
-                                StandardCharsets.UTF_8));
+                    new InputStreamReader(
+                        conexao.getInputStream(),
+                        StandardCharsets.UTF_8
+                    )
+                );
 
                 PrintWriter saida = new PrintWriter(
-                        conexao.getOutputStream(),
-                        true,
-                        StandardCharsets.UTF_8);
+                    conexao.getOutputStream(),
+                    true,
+                    StandardCharsets.UTF_8
+                )
+            ) {
+                saida.println(nome);
 
-                Scanner teclado = new Scanner(System.in)) {
-            System.out.println("Conectado ao servidor!");
-            System.out.println("Digite /sair para encerrar.");
+                Thread recebimento = new Thread(() -> {
+                    try {
+                        String mensagem;
 
-            while (true) {
-                System.out.print("Voce: ");
+                        while ((mensagem = entrada.readLine()) != null) {
+                            System.out.println(mensagem);
+                        }
 
-                if (!teclado.hasNextLine()) {
-                    break;
-                }
+                        System.out.println(
+                            "Conexao encerrada. Digite /sair para finalizar."
+                        );
+                    } catch (IOException e) {
+                        if (!conexao.isClosed()) {
+                            System.out.println(
+                                "Conexao interrompida. Digite /sair para finalizar."
+                            );
+                        }
+                    }
+                });
 
-                String mensagem = teclado.nextLine();
-                saida.println(mensagem);
+                recebimento.setDaemon(true);
+                recebimento.start();
 
-                String resposta = entrada.readLine();
+                System.out.println("Digite mensagens ou /sair para encerrar.");
 
-                if (resposta == null) {
-                    System.out.println("O servidor encerrou a conexao.");
-                    break;
-                }
+                while (teclado.hasNextLine()) {
+                    String mensagem = teclado.nextLine();
 
-                System.out.println(resposta);
+                    saida.println(mensagem);
 
-                if (mensagem.equalsIgnoreCase("/sair")) {
-                    break;
+                    if (mensagem.equalsIgnoreCase("/sair")
+                            || saida.checkError()) {
+                        break;
+                    }
                 }
             }
 
