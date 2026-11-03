@@ -192,3 +192,14 @@ Após a implementação, os 5 testes passaram.
 - `mvn test`: 28 testes passando (26 unitários sem rede ou banco, mais 2 de integração com H2 em memória), incluindo broadcast concorrente com 10 threads e corrida de nickname duplicado.
 - Teste manual com servidor real e 4 clientes TCP: broadcast, nickname duplicado recusado, queda abrupta sem afetar os demais e histórico recebido por quem entra depois.
 - IA (Claude, via Antigravity) usada para refatorar a arquitetura em camadas e escrever os testes; o código foi revisado e validado pelos testes acima.
+
+## Execução rápida (scripts)
+
+Os scripts localizam automaticamente um Java 21+ (via JAVA_HOME, JDK conhecido ou PATH) e montam o classpath com o driver H2.
+
+```powershell
+.\scripts\servidor.ps1 -Compilar   # porta 5000; ou: .\scripts\servidor.ps1 6000
+.\scripts\cliente.ps1              # em outros terminais
+```
+
+Se o PowerShell bloquear scripts: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
