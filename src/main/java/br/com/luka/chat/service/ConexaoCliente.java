@@ -17,3 +17,4 @@ public interface ConexaoCliente {
      */
     boolean enviar(String linha);
 }
+

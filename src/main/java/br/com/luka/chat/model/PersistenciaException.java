@@ -10,3 +10,4 @@ public class PersistenciaException extends RuntimeException {
         super(mensagem, causa);
     }
 }
+

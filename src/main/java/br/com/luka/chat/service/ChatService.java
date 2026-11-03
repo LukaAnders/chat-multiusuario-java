@@ -90,3 +90,4 @@ public class ChatService {
         return registry.usuariosOnline();
     }
 }
+

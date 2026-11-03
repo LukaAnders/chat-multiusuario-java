@@ -77,7 +77,7 @@ mvn clean compile
 Inicie o servidor:
 
 ```bash
-java -cp target/classes br.com.luka.chat.server.ServidorChat
+java -cp target/classes br.com.luka.chat.server.Servidor
 ```
 
 Em outro terminal, inicie um cliente:
@@ -178,3 +178,17 @@ Foram executados 5 testes com sucesso, sem rede ou banco:
 Os testes foram escritos antes das respectivas classes.
 Inicialmente, a compilação falhou pela ausência das classes.
 Após a implementação, os 5 testes passaram.
+
+## Atualização — núcleo obrigatório (03/11)
+
+- Pacotes: model (Usuario, Mensagem, MensagemRepository), service (ChatService, ClientRegistry, ConexaoCliente), persistence (JdbcMensagemRepository, ConnectionFactory), server (Servidor, ClienteHandler, Protocolo), client.
+- Persistência JDBC com H2 em arquivo (data/chat); script em src/main/resources/schema.sql.
+- Histórico das últimas 20 mensagens enviado ao conectar; nickname único.
+- Concorrência: ClientRegistry usa CopyOnWriteArrayList (broadcast itera sobre um snapshot, sem lock); o cadastro verifica o nickname e adiciona sob o mesmo lock (check-then-act atômico); enviar() é synchronized por cliente; salvar e broadcast formam uma seção crítica única, então a ordem no banco é a mesma que os clientes veem (o custo é perder paralelismo); uma Connection JDBC por operação.
+- O servidor precisa de Java 21+ e o classpath deve incluir o driver H2 (ou rode via `mvn dependency:build-classpath`).
+
+### Validação
+
+- `mvn test`: 28 testes passando (26 unitários sem rede ou banco, mais 2 de integração com H2 em memória), incluindo broadcast concorrente com 10 threads e corrida de nickname duplicado.
+- Teste manual com servidor real e 4 clientes TCP: broadcast, nickname duplicado recusado, queda abrupta sem afetar os demais e histórico recebido por quem entra depois.
+- IA (Claude, via Antigravity) usada para refatorar a arquitetura em camadas e escrever os testes; o código foi revisado e validado pelos testes acima.

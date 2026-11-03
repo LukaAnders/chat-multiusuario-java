@@ -14,3 +14,4 @@ public interface MensagemRepository {
     /** Devolve as ultimas mensagens em ordem cronologica (mais antiga primeiro). */
     List<Mensagem> buscarUltimas(int quantidade);
 }
+

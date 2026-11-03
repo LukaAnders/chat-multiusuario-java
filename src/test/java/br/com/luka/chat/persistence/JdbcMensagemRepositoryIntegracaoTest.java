@@ -50,3 +50,4 @@ class JdbcMensagemRepositoryIntegracaoTest {
         assertEquals(List.of("m3", "m4", "m5"), conteudos);
     }
 }
+

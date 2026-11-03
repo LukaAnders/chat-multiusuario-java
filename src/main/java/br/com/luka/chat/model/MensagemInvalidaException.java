@@ -9,3 +9,4 @@ public class MensagemInvalidaException extends IllegalArgumentException {
         super(motivo);
     }
 }
+

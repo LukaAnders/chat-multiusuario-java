@@ -7,3 +7,4 @@ CREATE TABLE IF NOT EXISTS mensagem (
 );
 
 CREATE INDEX IF NOT EXISTS idx_mensagem_horario ON mensagem(horario);
+

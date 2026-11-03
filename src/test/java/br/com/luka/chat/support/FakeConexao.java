@@ -40,3 +40,4 @@ public class FakeConexao implements ConexaoCliente {
         return recebidas;
     }
 }
+

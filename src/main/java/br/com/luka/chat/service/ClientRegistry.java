@@ -55,3 +55,4 @@ public class ClientRegistry {
         return conexoes.stream().map(ConexaoCliente::getUsuario).toList();
     }
 }
+

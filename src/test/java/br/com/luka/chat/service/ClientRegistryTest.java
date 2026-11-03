@@ -71,3 +71,4 @@ class ClientRegistryTest {
         assertEquals(1, registry.quantidade());
     }
 }
+
