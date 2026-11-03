@@ -3,41 +3,59 @@ package br.com.luka.chat.model;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Mensagem publica do chat. Imutavel: atributos privados e finais.
+ * Nasce com id nulo; o repositorio devolve uma nova instancia com o id.
+ * O horario vem de fora (Clock no servico) para manter testes deterministicos.
+ */
 public final class Mensagem {
 
-    private final String remetente;
+    public static final int TAMANHO_MAXIMO_CONTEUDO = 500;
+
+    private static final DateTimeFormatter FORMATO =
+        DateTimeFormatter.ofPattern("dd/MM HH:mm");
+
+    private final Long id;
+    private final Usuario remetente;
     private final String conteudo;
     private final LocalDateTime horario;
 
-    public Mensagem(
-        String remetente,
-        String conteudo,
-        LocalDateTime horario
-    ) {
-        if (remetente == null || remetente.isBlank()) {
-            throw new IllegalArgumentException(
-                "O remetente nao pode ser vazio."
-            );
-        }
+    public Mensagem(Usuario remetente, String conteudo, LocalDateTime horario) {
+        this(null, remetente, conteudo, horario);
+    }
 
+    public Mensagem(Long id, Usuario remetente, String conteudo, LocalDateTime horario) {
+        if (remetente == null) {
+            throw new MensagemInvalidaException("O remetente nao pode ser nulo.");
+        }
         if (conteudo == null || conteudo.isBlank()) {
-            throw new IllegalArgumentException(
-                "O conteudo nao pode ser vazio."
+            throw new MensagemInvalidaException("O conteudo nao pode ser vazio.");
+        }
+        String conteudoLimpo = conteudo.trim();
+        if (conteudoLimpo.length() > TAMANHO_MAXIMO_CONTEUDO) {
+            throw new MensagemInvalidaException(
+                "O conteudo deve ter no maximo " + TAMANHO_MAXIMO_CONTEUDO + " caracteres."
             );
         }
-
         if (horario == null) {
-            throw new IllegalArgumentException(
-                "O horario nao pode ser nulo."
-            );
+            throw new MensagemInvalidaException("O horario nao pode ser nulo.");
         }
 
-        this.remetente = remetente.trim();
-        this.conteudo = conteudo;
+        this.id = id;
+        this.remetente = remetente;
+        this.conteudo = conteudoLimpo;
         this.horario = horario;
     }
 
-    public String getRemetente() {
+    public Mensagem comId(Long novoId) {
+        return new Mensagem(novoId, remetente, conteudo, horario);
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Usuario getRemetente() {
         return remetente;
     }
 
@@ -50,10 +68,7 @@ public final class Mensagem {
     }
 
     public String formatar() {
-        DateTimeFormatter formato =
-            DateTimeFormatter.ofPattern("HH:mm");
-
-        return "[" + horario.format(formato) + "] "
-            + remetente + ": " + conteudo;
+        return "[" + horario.format(FORMATO) + "] "
+            + remetente.getNome() + ": " + conteudo;
     }
 }

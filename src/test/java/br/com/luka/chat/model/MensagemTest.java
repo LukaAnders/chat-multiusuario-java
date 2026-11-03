@@ -8,31 +8,55 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MensagemTest {
 
+    private static final Usuario LUKA = new Usuario("Luka");
+    private static final LocalDateTime HORARIO =
+        LocalDateTime.of(2026, 10, 6, 15, 30);
+
     @Test
-    void deveRecusarRemetenteVazio() {
-        assertThrows(IllegalArgumentException.class, () ->
-            new Mensagem("   ", "Ola!", LocalDateTime.now())
+    void deveRecusarRemetenteNulo() {
+        assertThrows(MensagemInvalidaException.class, () ->
+            new Mensagem(null, "Ola!", HORARIO)
         );
     }
 
     @Test
     void deveRecusarConteudoVazio() {
-        assertThrows(IllegalArgumentException.class, () ->
-            new Mensagem("Luka", "   ", LocalDateTime.now())
+        assertThrows(MensagemInvalidaException.class, () ->
+            new Mensagem(LUKA, "   ", HORARIO)
         );
     }
 
     @Test
-    void deveFormatarMensagemParaExibicao() {
-        LocalDateTime horario =
-            LocalDateTime.of(2026, 10, 6, 15, 30);
+    void deveRecusarConteudoAcimaDoLimite() {
+        String grande = "x".repeat(Mensagem.TAMANHO_MAXIMO_CONTEUDO + 1);
 
-        Mensagem mensagem =
-            new Mensagem("Luka", "Ola!", horario);
-
-        assertEquals(
-            "[15:30] Luka: Ola!",
-            mensagem.formatar()
+        assertThrows(MensagemInvalidaException.class, () ->
+            new Mensagem(LUKA, grande, HORARIO)
         );
+    }
+
+    @Test
+    void deveAplicarTrimNoConteudo() {
+        Mensagem mensagem = new Mensagem(LUKA, "  Ola!  ", HORARIO);
+
+        assertEquals("Ola!", mensagem.getConteudo());
+    }
+
+    @Test
+    void deveFormatarMensagemParaExibicao() {
+        Mensagem mensagem = new Mensagem(LUKA, "Olá!", HORARIO);
+
+        assertEquals("[06/10 15:30] Luka: Olá!", mensagem.formatar());
+    }
+
+    @Test
+    void deveNascerSemIdEGerarNovaInstanciaComId() {
+        Mensagem original = new Mensagem(LUKA, "Ola!", HORARIO);
+        Mensagem salva = original.comId(7L);
+
+        assertNull(original.getId());
+        assertEquals(7L, salva.getId());
+        assertEquals(original.getConteudo(), salva.getConteudo());
+        assertNotSame(original, salva);
     }
 }

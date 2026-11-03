@@ -25,4 +25,12 @@ replay_pid*
 
 
 
-targe/
+target/
+
+# Banco de dados local (H2)
+data/
+*.mv.db
+*.trace.db
+
+# Configuracao local com senhas
+chat.local.properties
