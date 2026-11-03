@@ -6,6 +6,114 @@ Sistema cliente-servidor em Java no qual vários clientes se conectam ao
 mesmo servidor, trocam mensagens por broadcast e recebem, ao entrar, as
 últimas mensagens salvas no banco de dados.
 
+---
+
+## ▶️ Como executar
+
+### Pré-requisitos
+
+| Item | Versão | Como conferir |
+|---|---|---|
+| JDK | **21 ou superior** | `java -version` (ou JDK em `JAVA_HOME`) |
+| Maven | 3.9+ | `mvn -v` |
+| Windows PowerShell | 5.1+ | já vem no Windows |
+
+> [!IMPORTANT]
+> Não é preciso instalar banco de dados: o H2 é baixado pelo Maven e o
+> arquivo do banco (`data/chat.mv.db`) é criado na primeira execução.
+
+### Passo 1 — Liberar scripts no PowerShell (apenas uma vez)
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+### Passo 2 — Iniciar o servidor
+
+Na pasta do projeto, abra um terminal e execute:
+
+```powershell
+.\scripts\servidor.ps1 -Compilar
+```
+
+Saída esperada:
+
+```text
+Compilando o projeto...
+Java: C:\...\jdk-26.0.2.1\bin\java.exe
+Servidor iniciado na porta 5000
+```
+
+> [!TIP]
+> Use `-Compilar` na primeira vez e sempre que alterar o código.
+> Para outra porta: `.\scripts\servidor.ps1 6000`.
+
+### Passo 3 — Abrir os clientes
+
+Abra **um novo terminal para cada usuário** (pelo menos 3 para a
+demonstração) e execute em cada um:
+
+```powershell
+.\scripts\cliente.ps1
+```
+
+### Passo 4 — Conversar
+
+1. Digite seu **nickname** (sem espaços, até 20 caracteres, único).
+2. Você recebe as últimas mensagens do histórico.
+3. Digite mensagens e pressione Enter; todos os conectados recebem.
+4. Digite `/sair` para encerrar o cliente.
+
+Exemplo:
+
+```text
+Digite seu nome: ana
+[03/11 13:59] carlos: mensagem antiga do histórico
+* ana entrou no chat
+olá pessoal!
+[03/11 14:02] ana: olá pessoal!
+* bruno entrou no chat
+[03/11 14:02] bruno: oi ana
+```
+
+### Passo 5 — Encerrar
+
+- Cliente: `/sair` ou fechar o terminal (o servidor trata a queda).
+- Servidor: `Ctrl + C`. O histórico permanece salvo em `data/`.
+
+### Roteiro de demonstração (vídeo)
+
+1. Iniciar o servidor.
+2. Conectar 3 clientes (`ana`, `bruno`, `carlos`) e trocar mensagens.
+3. Tentar entrar com um nome repetido e mostrar que ele é recusado.
+4. Fechar um terminal à força e mostrar que os outros continuam.
+5. Conectar um 4º cliente e mostrar que ele recebe o histórico.
+6. Reiniciar o servidor e mostrar que o histórico foi mantido.
+
+### Problemas comuns
+
+| Erro | Causa | Solução |
+|---|---|---|
+| `UnsupportedClassVersionError ... 65.0 ... 52.0` | `java` do PATH é o Java 8 | use os scripts ou ajuste `JAVA_HOME` para um JDK 21+ |
+| `ClassNotFoundException: org.h2.Driver` | driver H2 fora do classpath | use os scripts (eles montam o classpath) |
+| `não pode ser carregado porque a execução de scripts foi desabilitada` | política do PowerShell | Passo 1 |
+| `Address already in use` / `BindException` | porta 5000 ocupada | feche o outro servidor ou use outra porta |
+| `Connection refused` no cliente | servidor não iniciado | execute o Passo 2 antes |
+| Acentos estranhos | console fora de UTF-8 | use `scripts\cliente.ps1`, que configura UTF-8 |
+
+### Execução manual (sem scripts)
+
+```powershell
+$env:JAVA_HOME = "C:\caminho\para\jdk-21-ou-superior"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+mvn compile
+$cp = "target/classes;$env:USERPROFILE\.m2\repository\com\h2database\h2\2.2.224\h2-2.2.224.jar"
+java -cp $cp br.com.luka.chat.server.Servidor          # servidor
+java -cp target/classes br.com.luka.chat.client.ClienteChat   # cliente
+```
+
+---
+
 ## Tecnologias
 
 - Java: código compilado para Java 21 (JDK 26 no ambiente de desenvolvimento).
@@ -180,29 +288,6 @@ CREATE TABLE IF NOT EXISTS mensagem (
 - `SQLException` é convertida em `PersistenciaException`, para que
   `java.sql` não chegue às camadas de serviço e rede.
 - Avisos de entrada e saída não são persistidos.
-
-## Como executar
-
-Requer Java 21 ou superior. Os scripts encontram automaticamente um JDK
-compatível (via `JAVA_HOME`, o JDK conhecido ou o `PATH`) e montam o
-classpath com o driver H2.
-
-```powershell
-# Terminal 1 – servidor (use -Compilar na primeira vez ou depois de mudar o código)
-.\scripts\servidor.ps1 -Compilar
-
-# Terminais 2, 3, 4 – clientes
-.\scripts\cliente.ps1
-```
-
-- Para outra porta: `.\scripts\servidor.ps1 6000`.
-- Se o PowerShell bloquear scripts:
-  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
-- No cliente, digite o nickname, depois as mensagens; `/sair` encerra.
-
-> Executar `java -cp target/classes ...` diretamente falha se o `java`
-> do PATH for o Java 8 (`UnsupportedClassVersionError`) ou se o driver
-> H2 não estiver no classpath. Use os scripts.
 
 ## Testes
 
