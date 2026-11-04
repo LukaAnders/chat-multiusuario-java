@@ -44,6 +44,7 @@ Java: C:\...\jdk-26.0.2.1\bin\java.exe
 Servidor iniciado na porta 5000
 ```
 
+
 > [!TIP]
 > Use `-Compilar` na primeira vez e sempre que alterar o código.
 > Para outra porta: `.\scripts\servidor.ps1 6000`.
