@@ -15,6 +15,11 @@ function Find-Java {
     $candidatos = @()
     if ($env:JAVA_HOME) { $candidatos += Join-Path $env:JAVA_HOME 'bin\java.exe' }
     $candidatos += "$env:USERPROFILE\Downloads\jdk-26_windows-x64_bin\jdk-26.0.2.1\bin\java.exe"
+    
+    # Procura JREs embutidos em extensoes do VS Code (Temurin / RedHat Java)
+    $vscodeJdks = Get-ChildItem -Path "$env:USERPROFILE\.vscode\extensions" -Filter "java.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+    if ($vscodeJdks) { $candidatos += $vscodeJdks }
+
     $noPath = Get-Command java -ErrorAction SilentlyContinue
     if ($noPath) { $candidatos += $noPath.Source }
 
