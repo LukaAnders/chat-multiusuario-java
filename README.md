@@ -2,11 +2,6 @@
 
 Projeto de Programação Orientada a Objetos (Java) — 2º bimestre, Opção A.
 
-Sistema cliente-servidor em Java no qual vários clientes se conectam ao
-mesmo servidor, trocam mensagens por broadcast e recebem, ao entrar, as
-últimas mensagens salvas no banco de dados.
-
----
 
 ## ▶️ Como executar
 
