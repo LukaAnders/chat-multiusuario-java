@@ -50,9 +50,16 @@ Servidor iniciado na porta 5000
 
 ### Passo 3 — Abrir os clientes
 
-Abra **um novo terminal para cada usuário** (pelo menos 3 para a
-demonstração) e execute em cada um:
+Abra novos terminais ou janelas gráficas para cada usuário (pelo menos 3 para a
+demonstração). Você pode escolher entre **Interface Gráfica (Janela)** ou **Terminal**:
 
+#### Opção A — Interface Gráfica (Recomendada):
+```powershell
+.\scripts\cliente-gui.ps1
+```
+> Abre uma janela desktop nativa. Basta informar o nickname e conversar com rolagem automática e avisos visuais.
+
+#### Opção B — Terminal (Console):
 ```powershell
 .\scripts\cliente.ps1
 ```
@@ -251,6 +258,7 @@ recebem o aviso `* nome entrou no chat`.
 
 | Objeto compartilhado | Proteção |
 |---|---|
+| Interface Gráfica (Swing) | A thread de rede nunca toca componentes gráficos; despachos via `SwingUtilities.invokeLater()` na Event Dispatch Thread (EDT) |
 | Lista de clientes (`ClientRegistry`) | `CopyOnWriteArrayList`; o broadcast itera sobre um snapshot, sem lock durante a escrita nos sockets |
 | Nickname único | verificar e adicionar sob o mesmo lock (check-then-act atômico) |
 | `PrintWriter` de cada cliente | `enviar()` é `synchronized`, então as linhas não se intercalam |
@@ -295,10 +303,11 @@ CREATE TABLE IF NOT EXISTS mensagem (
 mvn test
 ```
 
-28 testes passando:
+29 testes passando:
 
-- **Unitários (26)**, sem rede nem banco, usando `InMemoryMensagemRepository`,
+- **Unitários (27)**, sem rede nem banco, usando `InMemoryMensagemRepository`,
   `FakeConexao` e `Clock.fixed`:
+  - `ConexaoRedeClienteTest`: conexão, envio de handshake e troca assíncrona de mensagens.
   - `UsuarioTest`: nome vazio, nulo, com espaço, acima do limite, trim e
     igualdade sem diferenciar maiúsculas.
   - `MensagemTest`: remetente nulo, conteúdo vazio e acima do limite,
