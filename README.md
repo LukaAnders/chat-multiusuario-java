@@ -336,7 +336,6 @@ Os testes das regras foram escritos antes das respectivas implementações.
   testes de concorrência e os scripts de execução.
 
 Validação:
-
 - teste manual com servidor real e 4 clientes TCP: broadcast entregue a
   todos, nickname duplicado recusado, queda abrupta de um cliente sem
   afetar os demais e histórico recebido por um cliente que entrou depois;
