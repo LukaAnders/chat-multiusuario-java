@@ -33,3 +33,4 @@ public class SimuladoServicoIa implements ServicoIa {
         return false;
     }
 }
+
