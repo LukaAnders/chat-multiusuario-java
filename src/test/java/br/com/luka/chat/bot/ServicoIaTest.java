@@ -37,3 +37,4 @@ class ServicoIaTest {
         assertEquals("Olá! Sou o Gemini.\nComo posso te ajudar?", textoExtraido);
     }
 }
+
