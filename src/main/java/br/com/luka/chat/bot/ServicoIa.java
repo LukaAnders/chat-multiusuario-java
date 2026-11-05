@@ -19,3 +19,4 @@ public interface ServicoIa {
      */
     boolean isReal();
 }
+
