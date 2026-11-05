@@ -1,0 +1,5 @@
+# Exemplo de configuracao local para ativar a IA Real (Gemini).
+# Para usar, copie este arquivo como 'chat.local.properties' (ignorado pelo Git).
+#
+# Obtenha sua chave gratuita em: https://aistudio.google.com/
+gemini.api.key=SUA_CHAVE_AQUI
