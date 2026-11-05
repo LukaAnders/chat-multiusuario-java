@@ -60,6 +60,14 @@ demonstração). Você pode escolher entre **Interface Gráfica (Janela)** ou **
 .\scripts\cliente.ps1
 ```
 
+#### Opção C — Bot de Inteligência Artificial (Opcional):
+```powershell
+.\scripts\bot-ia.ps1
+```
+> Conecta um participante autônomo chamado **@Gemini** ao chat. Ele escuta as mensagens e responde a qualquer usuário que mencione `@gemini`, `@ia` ou use `/ia <pergunta>`.
+> - **Sem configuração (padrão):** Funciona imediatamente no modo demonstração/offline (ideal para correção da professora).
+> - **Com IA Real (Gemini):** Veja a seção [Configurando a IA Real](#-bot-com-ia-e-configuração-de-api-key).
+
 ### Passo 4 — Conversar
 
 1. Digite seu **nickname** (sem espaços, até 20 caracteres, único).
@@ -250,6 +258,43 @@ Ao conectar, a primeira linha do cliente é o nickname. Se for válido e
 estiver livre, o cliente recebe as últimas 20 mensagens e os demais
 recebem o aviso `* nome entrou no chat`.
 
+---
+
+## 🤖 Bot com IA e Configuração de API Key
+
+O projeto inclui um **cliente autônomo com IA** (`br.com.luka.chat.bot.BotIaCliente`) que participa das conversas como um usuário normal chamado `@Gemini`.
+
+### Como falar com o Bot no Chat:
+Basta qualquer cliente (seja na interface gráfica ou terminal) enviar uma mensagem contendo:
+- `@gemini o que é uma race condition em Java?`
+- `@ia me explique o padrão Repository`
+- `/ia qual é a função do ServerSocket?`
+
+### Como ativar a IA Real (Google Gemini):
+Por padrão, se nenhuma chave for fornecida, o bot executa em **Modo Demonstração (Fallback)** com respostas simuladas, garantindo que o avaliador/professor consiga testar o projeto de primeira sem criar contas de terceiros.
+
+Para ativar a **IA Real com respostas inteligentes do Gemini**:
+1. Obtenha uma chave gratuita no [Google AI Studio](https://aistudio.google.com/).
+2. Defina a chave de uma das duas formas:
+
+**Forma 1 (Variável de Ambiente - Recomendada para a sessão):**
+```powershell
+$env:GEMINI_API_KEY = "sua_chave_aqui"
+.\scripts\bot-ia.ps1
+```
+
+**Forma 2 (Arquivo de Configuração Local):**
+Copie o modelo `chat.properties.example` para `chat.local.properties` (já incluso no `.gitignore` para nunca vazar chaves no Git):
+```properties
+gemini.api.key=sua_chave_aqui
+```
+
+### Arquitetura e Concorrência do Bot:
+- **Cliente Autônomo:** Não altera o servidor nem o domínio. O bot é tratado como qualquer outro cliente TCP.
+- **Chamadas Assíncronas:** A requisição HTTP externa para o Google Gemini roda em um `ExecutorService` desacoplado da thread que lê do socket. Assim, mesmo com latência de rede na API externa, o chat continua em tempo real sem travamentos.
+
+---
+
 ## Concorrência
 
 | Objeto compartilhado | Proteção |
@@ -299,10 +344,11 @@ CREATE TABLE IF NOT EXISTS mensagem (
 mvn test
 ```
 
-29 testes passando:
+31 testes passando:
 
-- **Unitários (27)**, sem rede nem banco, usando `InMemoryMensagemRepository`,
+- **Unitários (29)**, sem rede nem banco, usando `InMemoryMensagemRepository`,
   `FakeConexao` e `Clock.fixed`:
+  - `ServicoIaTest`: respostas do bot no modo simulado e parsing correto de respostas JSON da API Gemini.
   - `ConexaoRedeClienteTest`: conexão, envio de handshake e troca assíncrona de mensagens.
   - `UsuarioTest`: nome vazio, nulo, com espaço, acima do limite, trim e
     igualdade sem diferenciar maiúsculas.
