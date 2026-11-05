@@ -16,3 +16,4 @@ if ($env:GEMINI_API_KEY) {
 }
 
 & $Java -cp $cp br.com.luka.chat.bot.BotIaCliente "localhost" $Porta "Gemini"
+
