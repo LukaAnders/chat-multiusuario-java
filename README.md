@@ -69,7 +69,10 @@ demonstração). Você pode escolher entre **Interface Gráfica (Janela)** ou **
 > - **Sem configuração (padrão):** Funciona imediatamente no modo demonstração/offline (ideal para correção da professora).
 > - **Com IA Real (Gemini):** Veja a seção [Configurando a IA Real](#-bot-com-ia-e-configuração-de-api-key).
 
-### Passo 4 — Conversar
+
+
+
+### Passo 4 
 
 1. Digite seu **nickname** (sem espaços, até 20 caracteres, único).
 2. Você recebe as últimas mensagens do histórico.
