@@ -64,6 +64,7 @@ demonstração). Você pode escolher entre **Interface Gráfica (Janela)** ou **
 ```powershell
 .\scripts\bot-ia.ps1
 ```
+
 > Conecta um participante autônomo chamado **@Gemini** ao chat. Ele escuta as mensagens e responde a qualquer usuário que mencione `@gemini`, `@ia` ou use `/ia <pergunta>`.
 > - **Sem configuração (padrão):** Funciona imediatamente no modo demonstração/offline (ideal para correção da professora).
 > - **Com IA Real (Gemini):** Veja a seção [Configurando a IA Real](#-bot-com-ia-e-configuração-de-api-key).
