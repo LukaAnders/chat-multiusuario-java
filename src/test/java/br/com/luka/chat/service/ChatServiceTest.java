@@ -190,6 +190,27 @@ class ChatServiceTest {
     }
 
     @Test
+    void criarGrupoComMembrosEscolhidosDeveAdicionarApenasOsConvidados() {
+        FakeConexao ana = new FakeConexao("ana");
+        FakeConexao bruno = new FakeConexao("bruno");
+        FakeConexao carlos = new FakeConexao("carlos");
+        service.conectar(ana);
+        service.conectar(bruno);
+        service.conectar(carlos);
+
+        ana.getRecebidas().clear();
+        bruno.getRecebidas().clear();
+        carlos.getRecebidas().clear();
+
+        service.criarGrupoComMembros(ana, "estudos", List.of(bruno.getUsuario()));
+
+        // Ana e Bruno veem #estudos na lista ~CONTATOS, mas Carlos nao ve
+        assertTrue(ana.getRecebidas().stream().anyMatch(l -> l.startsWith("~CONTATOS|") && l.contains("#estudos")));
+        assertTrue(bruno.getRecebidas().stream().anyMatch(l -> l.startsWith("~CONTATOS|") && l.contains("#estudos")));
+        assertFalse(carlos.getRecebidas().stream().anyMatch(l -> l.startsWith("~CONTATOS|") && l.contains("#estudos")));
+    }
+
+    @Test
     void broadcastConcorrenteNaoDevePerderNemCorromperMensagens() throws Exception {
         int clientes = 10;
         int mensagensPorCliente = 50;

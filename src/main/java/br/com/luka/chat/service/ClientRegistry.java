@@ -3,6 +3,7 @@ package br.com.luka.chat.service;
 import br.com.luka.chat.model.Mensagem;
 import br.com.luka.chat.model.Usuario;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Concorrencia:
  * - CopyOnWriteArrayList para conexoes: o broadcast (leitura) e muito
  *   mais frequente que conectar/desconectar (escrita).
- * - ConcurrentHashMap com Sets concorrentes para os grupos.
+ * - ConcurrentHashMap com Sets concorrentes para os grupos e seus membros.
  */
 public class ClientRegistry {
 
@@ -26,10 +27,6 @@ public class ClientRegistry {
     private final Map<String, Set<Usuario>> grupos = new ConcurrentHashMap<>();
     private final Object travaCadastro = new Object();
 
-    public ClientRegistry() {
-        grupos.put(Mensagem.DESTINO_GERAL, ConcurrentHashMap.newKeySet());
-    }
-
     /** @return false se o nickname ja estiver em uso. */
     public boolean adicionar(ConexaoCliente conexao) {
         synchronized (travaCadastro) {
@@ -37,7 +34,6 @@ public class ClientRegistry {
                 return false;
             }
             conexoes.add(conexao);
-            adicionarAoGrupo(Mensagem.DESTINO_GERAL, conexao.getUsuario());
             return true;
         }
     }
@@ -82,6 +78,17 @@ public class ClientRegistry {
         return chave;
     }
 
+    /** Cria ou atualiza um grupo adicionando o criador e todos os membros selecionados. */
+    public String criarGrupoComMembros(String nomeGrupo, Usuario criador, Collection<Usuario> convidados) {
+        String chave = normalizarGrupo(nomeGrupo);
+        Set<Usuario> membros = grupos.computeIfAbsent(chave, k -> ConcurrentHashMap.newKeySet());
+        membros.add(criador);
+        if (convidados != null) {
+            membros.addAll(convidados);
+        }
+        return chave;
+    }
+
     public Set<Usuario> membrosDoGrupo(String nomeGrupo) {
         String chave = normalizarGrupo(nomeGrupo);
         Set<Usuario> membros = grupos.get(chave);
@@ -92,9 +99,10 @@ public class ClientRegistry {
         return grupos.keySet().stream().sorted().toList();
     }
 
+    /** Devolve apenas os grupos dos quais o usuario faz parte. */
     public List<String> gruposDoUsuario(Usuario usuario) {
         return grupos.entrySet().stream()
-            .filter(e -> e.getKey().equals(Mensagem.DESTINO_GERAL) || e.getValue().contains(usuario))
+            .filter(e -> e.getValue().contains(usuario))
             .map(Map.Entry::getKey)
             .sorted()
             .toList();

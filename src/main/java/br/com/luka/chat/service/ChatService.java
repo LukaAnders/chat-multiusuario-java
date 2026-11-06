@@ -6,13 +6,14 @@ import br.com.luka.chat.model.Usuario;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Regras do chat: conectar, desconectar, enviar no geral, enviar em grupos,
+ * Regras do chat: conectar, desconectar, enviar em grupos,
  * enviar mensagens privadas e recuperar historicos por conversa.
  * Nao conhece Socket nem SQL; recebe as dependencias pelo construtor.
  */
@@ -62,7 +63,7 @@ public class ChatService {
         }
     }
 
-    /** Envia mensagem na sala publica #geral. */
+    /** Envia mensagem na sala publica #geral (mantido para console e compatibilidade). */
     public Mensagem enviarMensagem(Usuario remetente, String texto) {
         Mensagem nova = new Mensagem(null, remetente, Mensagem.DESTINO_GERAL, texto, LocalDateTime.now(relogio));
         synchronized (travaEnvio) {
@@ -123,6 +124,28 @@ public class ChatService {
         return grupo;
     }
 
+    /** Cria um grupo adicionando o criador e a lista de convidados escolhidos. */
+    public String criarGrupoComMembros(ConexaoCliente criador, String nomeGrupo, Collection<Usuario> convidados) {
+        String grupo = registry.criarGrupoComMembros(nomeGrupo, criador.getUsuario(), convidados);
+        notificarContatosEGrupos();
+
+        Set<Usuario> membros = registry.membrosDoGrupo(grupo);
+        String nomesMembros = membros.stream()
+            .map(Usuario::getNome)
+            .sorted()
+            .collect(Collectors.joining(", "));
+        String aviso = PREFIXO_GRUPO + grupo + "|" + PREFIXO_SISTEMA
+            + criador.getUsuario().getNome() + " criou o grupo " + grupo + " com: " + nomesMembros;
+
+        for (ConexaoCliente conexao : registry.snapshot()) {
+            if (membros.contains(conexao.getUsuario())) {
+                entregarComSeguranca(conexao, aviso);
+            }
+        }
+        enviarHistoricoConversa(criador, grupo);
+        return grupo;
+    }
+
     /** Envia o historico de uma conversa (#grupo ou @usuario) para o cliente solicitante. */
     public void enviarHistoricoConversa(ConexaoCliente conexao, String alvo) {
         if (alvo == null || alvo.isBlank()) {
@@ -150,13 +173,19 @@ public class ChatService {
         }
     }
 
-    /** Envia para todos a lista de usuarios online e grupos disponiveis. */
+    /**
+     * Envia para cada cliente conectado a lista de usuarios online e APENAS os
+     * grupos dos quais aquele cliente faz parte.
+     */
     public void notificarContatosEGrupos() {
         String usuarios = registry.usuariosOnline().stream()
             .map(Usuario::getNome)
             .collect(Collectors.joining(","));
-        String grupos = String.join(",", registry.gruposDisponiveis());
-        broadcast(PREFIXO_CONTATOS + usuarios + "|" + grupos);
+
+        for (ConexaoCliente conexao : registry.snapshot()) {
+            String gruposDoCliente = String.join(",", registry.gruposDoUsuario(conexao.getUsuario()));
+            entregarComSeguranca(conexao, PREFIXO_CONTATOS + usuarios + "|" + gruposDoCliente);
+        }
     }
 
     /**

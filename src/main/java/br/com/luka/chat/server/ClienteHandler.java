@@ -129,6 +129,27 @@ public class ClienteHandler implements Runnable, ConexaoCliente {
                 return;
             }
 
+            if (cmdLower.startsWith(Protocolo.COMANDO_CRIAR_GRUPO)) {
+                String resto = comando.substring(Protocolo.COMANDO_CRIAR_GRUPO.length()).trim();
+                if (resto.isEmpty()) {
+                    enviar(Protocolo.erro("Uso: /criargrupo <nomeGrupo> [user1,user2,...]"));
+                    return;
+                }
+                String[] partes = resto.split("\\s+", 2);
+                String nomeGrupo = partes[0];
+                java.util.List<Usuario> convidados = new java.util.ArrayList<>();
+                if (partes.length > 1 && !partes[1].isBlank()) {
+                    for (String nomeUser : partes[1].split(",")) {
+                        String limpo = nomeUser.trim();
+                        if (!limpo.isEmpty()) {
+                            convidados.add(new Usuario(limpo));
+                        }
+                    }
+                }
+                chatService.criarGrupoComMembros(this, nomeGrupo, convidados);
+                return;
+            }
+
             if (cmdLower.startsWith(Protocolo.COMANDO_ENTRAR) || cmdLower.startsWith("/criar ")) {
                 int espaco = comando.indexOf(' ');
                 String nomeGrupo = comando.substring(espaco + 1).trim();
