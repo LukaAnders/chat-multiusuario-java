@@ -49,11 +49,15 @@ Servidor iniciado na porta 5000
 Abra novos terminais ou janelas gráficas para cada usuário (pelo menos 3 para a
 demonstração). Você pode escolher entre **Interface Gráfica (Janela)** ou **Terminal**:
 
-#### Opção A — Interface Gráfica (Recomendada):
+#### Opção A — Interface Gráfica Estilo WhatsApp (Recomendada):
 ```powershell
 .\scripts\cliente-gui.ps1
 ```
-> Abre uma janela desktop nativa. Basta informar o nickname e conversar com rolagem automática e avisos visuais.
+> Abre uma janela desktop moderna com:
+> - **Barra lateral de Conversas & Grupos:** Alterne entre a sala pública (`🌐 #geral`), grupos (`👥 #nome-grupo`) e conversas privadas 1x1 com qualquer usuário conectado (`💬 @usuario`).
+> - **Botão `+ Novo Grupo`:** Crie ou entre em grupos em tempo real.
+> - **Notificações de mensagens não lidas:** Indicador `● (N)` ao lado das conversas com novas mensagens.
+> - **Seletor de Temas:** Escolha entre *Escuro (Discord)*, *Claro*, *Drácula* e *Esmeralda*.
 
 #### Opção B — Terminal (Console):
 ```powershell
