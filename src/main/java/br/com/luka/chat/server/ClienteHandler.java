@@ -150,6 +150,40 @@ public class ClienteHandler implements Runnable, ConexaoCliente {
                 return;
             }
 
+            if (cmdLower.startsWith(Protocolo.COMANDO_ADD_GRUPO)) {
+                String resto = comando.substring(Protocolo.COMANDO_ADD_GRUPO.length()).trim();
+                String[] partes = resto.split("\\s+", 2);
+                if (partes.length < 2 || partes[1].isBlank()) {
+                    enviar(Protocolo.erro("Uso: /addgrupo <nomeGrupo> <user1,user2,...>"));
+                    return;
+                }
+                java.util.List<Usuario> novos = new java.util.ArrayList<>();
+                for (String nomeUser : partes[1].split(",")) {
+                    String limpo = nomeUser.trim();
+                    if (!limpo.isEmpty()) {
+                        novos.add(new Usuario(limpo));
+                    }
+                }
+                chatService.adicionarMembrosAoGrupo(this, partes[0], novos);
+                return;
+            }
+
+            if (cmdLower.startsWith(Protocolo.COMANDO_SAIR_GRUPO)) {
+                String nomeGrupo = comando.substring(Protocolo.COMANDO_SAIR_GRUPO.length()).trim();
+                if (!nomeGrupo.isEmpty()) {
+                    chatService.sairDoGrupo(this, nomeGrupo);
+                }
+                return;
+            }
+
+            if (cmdLower.startsWith(Protocolo.COMANDO_APAGAR_GRUPO)) {
+                String nomeGrupo = comando.substring(Protocolo.COMANDO_APAGAR_GRUPO.length()).trim();
+                if (!nomeGrupo.isEmpty()) {
+                    chatService.apagarGrupo(this, nomeGrupo);
+                }
+                return;
+            }
+
             if (cmdLower.startsWith(Protocolo.COMANDO_ENTRAR) || cmdLower.startsWith("/criar ")) {
                 int espaco = comando.indexOf(' ');
                 String nomeGrupo = comando.substring(espaco + 1).trim();

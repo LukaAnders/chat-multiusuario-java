@@ -211,6 +211,36 @@ class ChatServiceTest {
     }
 
     @Test
+    void deveAdicionarMembroDepoisSairEApagarGrupo() {
+        FakeConexao ana = new FakeConexao("ana");
+        FakeConexao bruno = new FakeConexao("bruno");
+        FakeConexao carlos = new FakeConexao("carlos");
+        service.conectar(ana);
+        service.conectar(bruno);
+        service.conectar(carlos);
+
+        service.criarGrupoComMembros(ana, "projeto", List.of(bruno.getUsuario()));
+        service.enviarMensagemGrupo(ana.getUsuario(), "#projeto", "primeira msg");
+
+        // Adiciona Carlos ao grupo existente: ele deve receber o historico do grupo
+        carlos.getRecebidas().clear();
+        service.adicionarMembrosAoGrupo(ana, "#projeto", List.of(carlos.getUsuario()));
+        assertTrue(carlos.getRecebidas().stream().anyMatch(l -> l.contains("primeira msg")));
+
+        // Bruno sai do grupo: nao recebe mais mensagens do grupo
+        service.sairDoGrupo(bruno, "#projeto");
+        bruno.getRecebidas().clear();
+        service.enviarMensagemGrupo(ana.getUsuario(), "#projeto", "segunda msg");
+        assertFalse(bruno.getRecebidas().stream().anyMatch(l -> l.contains("segunda msg")));
+
+        // Ana apaga o grupo: historico do grupo e removido e todos recebem ~REMGRUPO|#projeto
+        service.apagarGrupo(ana, "#projeto");
+        assertTrue(repository.buscarPorDestino("#projeto", 10).isEmpty());
+        assertTrue(ana.getRecebidas().contains("~REMGRUPO|#projeto"));
+        assertTrue(carlos.getRecebidas().contains("~REMGRUPO|#projeto"));
+    }
+
+    @Test
     void broadcastConcorrenteNaoDevePerderNemCorromperMensagens() throws Exception {
         int clientes = 10;
         int mensagensPorCliente = 50;

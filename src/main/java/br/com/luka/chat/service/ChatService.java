@@ -23,6 +23,7 @@ public class ChatService {
     public static final String PREFIXO_GRUPO = "~GRUPO|";
     public static final String PREFIXO_PRIVADA = "~PRIV|";
     public static final String PREFIXO_CONTATOS = "~CONTATOS|";
+    public static final String PREFIXO_REMOVER_GRUPO = "~REMGRUPO|";
 
     private final MensagemRepository repository;
     private final ClientRegistry registry;
@@ -144,6 +145,66 @@ public class ChatService {
         }
         enviarHistoricoConversa(criador, grupo);
         return grupo;
+    }
+
+    /** Adiciona novos participantes a um grupo existente, envia historico a eles e avisa o grupo. */
+    public void adicionarMembrosAoGrupo(ConexaoCliente autor, String nomeGrupo, Collection<Usuario> novosMembros) {
+        if (novosMembros == null || novosMembros.isEmpty()) {
+            return;
+        }
+        String grupo = registry.adicionarMembrosAoGrupo(nomeGrupo, novosMembros);
+        notificarContatosEGrupos();
+
+        for (Usuario novo : novosMembros) {
+            registry.buscarPorUsuario(novo).ifPresent(c -> enviarHistoricoConversa(c, grupo));
+        }
+
+        String nomesAdicionados = novosMembros.stream()
+            .map(Usuario::getNome)
+            .sorted()
+            .collect(Collectors.joining(", "));
+        String aviso = PREFIXO_GRUPO + grupo + "|" + PREFIXO_SISTEMA
+            + autor.getUsuario().getNome() + " adicionou ao grupo: " + nomesAdicionados;
+
+        Set<Usuario> membrosAtuais = registry.membrosDoGrupo(grupo);
+        for (ConexaoCliente conexao : registry.snapshot()) {
+            if (membrosAtuais.contains(conexao.getUsuario())) {
+                entregarComSeguranca(conexao, aviso);
+            }
+        }
+    }
+
+    /** Remove o cliente de um grupo e avisa os membros restantes. */
+    public void sairDoGrupo(ConexaoCliente cliente, String nomeGrupo) {
+        String grupo = ClientRegistry.normalizarGrupo(nomeGrupo);
+        boolean saiu = registry.sairDoGrupo(grupo, cliente.getUsuario());
+        entregarComSeguranca(cliente, PREFIXO_REMOVER_GRUPO + grupo);
+        notificarContatosEGrupos();
+
+        if (saiu) {
+            String aviso = PREFIXO_GRUPO + grupo + "|" + PREFIXO_SISTEMA
+                + cliente.getUsuario().getNome() + " saiu do grupo";
+            Set<Usuario> restantes = registry.membrosDoGrupo(grupo);
+            for (ConexaoCliente conexao : registry.snapshot()) {
+                if (restantes.contains(conexao.getUsuario())) {
+                    entregarComSeguranca(conexao, aviso);
+                }
+            }
+        }
+    }
+
+    /** Apaga o grupo para todos os membros e remove o historico do banco. */
+    public void apagarGrupo(ConexaoCliente autor, String nomeGrupo) {
+        String grupo = ClientRegistry.normalizarGrupo(nomeGrupo);
+        Set<Usuario> exMembros = registry.apagarGrupo(grupo);
+        repository.removerPorDestino(grupo);
+
+        for (ConexaoCliente conexao : registry.snapshot()) {
+            if (exMembros.contains(conexao.getUsuario()) || conexao.equals(autor)) {
+                entregarComSeguranca(conexao, PREFIXO_REMOVER_GRUPO + grupo);
+            }
+        }
+        notificarContatosEGrupos();
     }
 
     /** Envia o historico de uma conversa (#grupo ou @usuario) para o cliente solicitante. */

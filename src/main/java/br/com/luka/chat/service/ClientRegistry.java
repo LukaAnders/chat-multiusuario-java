@@ -89,6 +89,40 @@ public class ClientRegistry {
         return chave;
     }
 
+    /** Adiciona novos participantes a um grupo ja existente. */
+    public String adicionarMembrosAoGrupo(String nomeGrupo, Collection<Usuario> novosMembros) {
+        String chave = normalizarGrupo(nomeGrupo);
+        Set<Usuario> membros = grupos.computeIfAbsent(chave, k -> ConcurrentHashMap.newKeySet());
+        if (novosMembros != null) {
+            membros.addAll(novosMembros);
+        }
+        return chave;
+    }
+
+    /**
+     * Remove um usuario do grupo de forma atomica. Se o grupo ficar vazio,
+     * ele e removido automaticamente do mapa (computeIfPresent).
+     */
+    public boolean sairDoGrupo(String nomeGrupo, Usuario usuario) {
+        String chave = normalizarGrupo(nomeGrupo);
+        final boolean[] removido = {false};
+        grupos.computeIfPresent(chave, (k, membros) -> {
+            removido[0] = membros.remove(usuario);
+            return membros.isEmpty() ? null : membros;
+        });
+        return removido[0];
+    }
+
+    /**
+     * Exclui o grupo completamente e devolve o conjunto de usuarios que faziam
+     * parte dele no momento da exclusao.
+     */
+    public Set<Usuario> apagarGrupo(String nomeGrupo) {
+        String chave = normalizarGrupo(nomeGrupo);
+        Set<Usuario> antigos = grupos.remove(chave);
+        return antigos == null ? Set.of() : Set.copyOf(antigos);
+    }
+
     public Set<Usuario> membrosDoGrupo(String nomeGrupo) {
         String chave = normalizarGrupo(nomeGrupo);
         Set<Usuario> membros = grupos.get(chave);

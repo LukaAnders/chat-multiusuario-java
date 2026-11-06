@@ -31,6 +31,8 @@ public class JdbcMensagemRepository implements MensagemRepository {
         + "WHERE (LOWER(remetente) = LOWER(?) AND LOWER(destino) = LOWER(?)) "
         + "   OR (LOWER(remetente) = LOWER(?) AND LOWER(destino) = LOWER(?)) "
         + "ORDER BY id DESC LIMIT ?";
+    private static final String SQL_REMOVER_POR_DESTINO =
+        "DELETE FROM mensagem WHERE LOWER(destino) = LOWER(?)";
 
     private final ConnectionFactory fabrica;
 
@@ -113,6 +115,20 @@ public class JdbcMensagemRepository implements MensagemRepository {
         }
         Collections.reverse(mensagens);
         return mensagens;
+    }
+
+    @Override
+    public void removerPorDestino(String destino) {
+        if (destino == null || destino.isBlank()) {
+            return;
+        }
+        try (Connection conexao = fabrica.abrir();
+             PreparedStatement comando = conexao.prepareStatement(SQL_REMOVER_POR_DESTINO)) {
+            comando.setString(1, destino.trim().toLowerCase(Locale.ROOT));
+            comando.executeUpdate();
+        } catch (SQLException e) {
+            throw new PersistenciaException("Falha ao remover mensagens do grupo", e);
+        }
     }
 
     private Mensagem mapearMensagem(ResultSet resultado) throws SQLException {

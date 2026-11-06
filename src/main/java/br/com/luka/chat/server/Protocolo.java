@@ -10,6 +10,9 @@ public final class Protocolo {
     public static final String COMANDO_MSG = "/msg ";
     public static final String COMANDO_GRUPO = "/grupo ";
     public static final String COMANDO_CRIAR_GRUPO = "/criargrupo ";
+    public static final String COMANDO_ADD_GRUPO = "/addgrupo ";
+    public static final String COMANDO_SAIR_GRUPO = "/sairgrupo ";
+    public static final String COMANDO_APAGAR_GRUPO = "/apagargrupo ";
     public static final String COMANDO_ENTRAR = "/entrar ";
     public static final String COMANDO_HISTORICO = "/historico ";
     public static final String PREFIXO_COMANDO = "/";

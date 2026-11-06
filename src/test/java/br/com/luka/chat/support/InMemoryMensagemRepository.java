@@ -50,6 +50,13 @@ public class InMemoryMensagemRepository implements MensagemRepository {
         return List.copyOf(filtradas.subList(inicio, filtradas.size()));
     }
 
+    @Override
+    public synchronized void removerPorDestino(String destino) {
+        if (destino == null) return;
+        String alvo = destino.trim().toLowerCase(Locale.ROOT);
+        mensagens.removeIf(m -> m.getDestino().equalsIgnoreCase(alvo));
+    }
+
     public synchronized List<Mensagem> todas() {
         return List.copyOf(mensagens);
     }

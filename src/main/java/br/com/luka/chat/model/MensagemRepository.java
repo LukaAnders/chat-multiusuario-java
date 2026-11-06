@@ -19,4 +19,7 @@ public interface MensagemRepository {
 
     /** Devolve as ultimas mensagens privadas trocadas entre dois usuarios. */
     List<Mensagem> buscarPrivadas(Usuario usuarioA, Usuario usuarioB, int quantidade);
+
+    /** Remove todas as mensagens de um destino/grupo especifico. */
+    void removerPorDestino(String destino);
 }
