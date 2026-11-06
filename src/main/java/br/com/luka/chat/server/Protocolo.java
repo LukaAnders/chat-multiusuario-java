@@ -1,14 +1,19 @@
 package br.com.luka.chat.server;
 
 /**
- * Constantes do protocolo de texto (uma mensagem por linha, UTF-8).
+ * Constantes e utilitarios do protocolo de texto (uma mensagem por linha, UTF-8).
  * Handshake: a primeira linha do cliente e o nickname.
  */
 public final class Protocolo {
 
     public static final String COMANDO_SAIR = "/sair";
+    public static final String COMANDO_MSG = "/msg ";
+    public static final String COMANDO_GRUPO = "/grupo ";
+    public static final String COMANDO_ENTRAR = "/entrar ";
+    public static final String COMANDO_HISTORICO = "/historico ";
     public static final String PREFIXO_COMANDO = "/";
     public static final String PREFIXO_ERRO = "! ";
+    public static final String PREFIXO_CONTROLE = "~";
 
     private Protocolo() {
     }
@@ -26,4 +31,3 @@ public final class Protocolo {
         return PREFIXO_ERRO + motivo;
     }
 }
-

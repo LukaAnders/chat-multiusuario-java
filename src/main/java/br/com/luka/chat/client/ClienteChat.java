@@ -43,6 +43,23 @@ public class ClienteChat {
                         String mensagem;
 
                         while ((mensagem = entrada.readLine()) != null) {
+                            if (mensagem.startsWith("~CONTATOS|")) {
+                                continue;
+                            }
+                            if (mensagem.startsWith("~GRUPO|")) {
+                                String[] partes = mensagem.split("\\|", 3);
+                                if (partes.length == 3) {
+                                    System.out.println("[" + partes[1] + "] " + partes[2]);
+                                    continue;
+                                }
+                            }
+                            if (mensagem.startsWith("~PRIV|")) {
+                                String[] partes = mensagem.split("\\|", 4);
+                                if (partes.length == 4) {
+                                    System.out.println("[Privado " + partes[1] + " -> " + partes[2] + "] " + partes[3]);
+                                    continue;
+                                }
+                            }
                             System.out.println(mensagem);
                         }
 

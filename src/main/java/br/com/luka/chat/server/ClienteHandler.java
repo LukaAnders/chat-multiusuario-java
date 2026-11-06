@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 /**
  * Atende UMA conexao em sua propria thread. Le linhas e delega ao
@@ -63,13 +64,12 @@ public class ClienteHandler implements Runnable, ConexaoCliente {
                     break;
                 }
                 if (Protocolo.ehComando(linha)) {
-                    enviar(Protocolo.erro("Comando desconhecido. Use /sair."));
+                    tratarComando(linha.trim());
                     continue;
                 }
                 tratarMensagem(linha);
             }
         } catch (IOException e) {
-            // Desconexao abrupta: segue para o finally sem afetar os demais.
             System.out.println("Conexao perdida com " + usuario + ": " + e.getMessage());
         } catch (RuntimeException e) {
             System.out.println("Erro inesperado com " + usuario + ": " + e);
@@ -100,11 +100,66 @@ public class ClienteHandler implements Runnable, ConexaoCliente {
         return false;
     }
 
+    private void tratarComando(String comando) {
+        String cmdLower = comando.toLowerCase(Locale.ROOT);
+        try {
+            if (cmdLower.startsWith(Protocolo.COMANDO_MSG)) {
+                String resto = comando.substring(Protocolo.COMANDO_MSG.length()).trim();
+                int espaco = resto.indexOf(' ');
+                if (espaco == -1) {
+                    enviar(Protocolo.erro("Uso: /msg <usuario> <mensagem>"));
+                    return;
+                }
+                String destino = resto.substring(0, espaco).trim();
+                String texto = resto.substring(espaco + 1).trim();
+                chatService.enviarMensagemPrivada(usuario, destino, texto);
+                return;
+            }
+
+            if (cmdLower.startsWith(Protocolo.COMANDO_GRUPO)) {
+                String resto = comando.substring(Protocolo.COMANDO_GRUPO.length()).trim();
+                int espaco = resto.indexOf(' ');
+                if (espaco == -1) {
+                    enviar(Protocolo.erro("Uso: /grupo <nomeGrupo> <mensagem>"));
+                    return;
+                }
+                String nomeGrupo = resto.substring(0, espaco).trim();
+                String texto = resto.substring(espaco + 1).trim();
+                chatService.enviarMensagemGrupo(usuario, nomeGrupo, texto);
+                return;
+            }
+
+            if (cmdLower.startsWith(Protocolo.COMANDO_ENTRAR) || cmdLower.startsWith("/criar ")) {
+                int espaco = comando.indexOf(' ');
+                String nomeGrupo = comando.substring(espaco + 1).trim();
+                if (nomeGrupo.isEmpty()) {
+                    enviar(Protocolo.erro("Informe o nome do grupo."));
+                    return;
+                }
+                chatService.entrarNoGrupo(this, nomeGrupo);
+                return;
+            }
+
+            if (cmdLower.startsWith(Protocolo.COMANDO_HISTORICO)) {
+                String alvo = comando.substring(Protocolo.COMANDO_HISTORICO.length()).trim();
+                chatService.enviarHistoricoConversa(this, alvo);
+                return;
+            }
+
+            enviar(Protocolo.erro("Comandos: /msg <user> <txt>, /grupo <sala> <txt>, /entrar <sala>, /sair"));
+        } catch (IllegalArgumentException e) {
+            enviar(Protocolo.erro(e.getMessage()));
+        } catch (PersistenciaException e) {
+            System.out.println("Falha no banco: " + e.getCause());
+            enviar(Protocolo.erro("Operacao falhou ao acessar o banco."));
+        }
+    }
+
     private void tratarMensagem(String linha) {
         try {
             chatService.enviarMensagem(usuario, linha);
         } catch (MensagemInvalidaException e) {
-            enviar(Protocolo.erro(e.getMessage())); // so para o remetente
+            enviar(Protocolo.erro(e.getMessage()));
         } catch (PersistenciaException e) {
             System.out.println("Falha no banco: " + e.getCause());
             enviar(Protocolo.erro("Mensagem nao enviada: falha ao salvar."));

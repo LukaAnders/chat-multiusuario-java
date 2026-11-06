@@ -1,8 +1,10 @@
 package br.com.luka.chat.service;
 
+import br.com.luka.chat.model.Usuario;
 import br.com.luka.chat.support.FakeConexao;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -70,5 +72,20 @@ class ClientRegistryTest {
         assertEquals(1, sucessos.get());
         assertEquals(1, registry.quantidade());
     }
-}
 
+    @Test
+    void deveGerenciarGruposEMembrosDeFormaConcorrente() {
+        ClientRegistry registry = new ClientRegistry();
+        Usuario ana = new Usuario("ana");
+        Usuario bruno = new Usuario("bruno");
+
+        registry.adicionarAoGrupo("#trabalho", ana);
+        registry.adicionarAoGrupo("TRABALHO", bruno);
+
+        Set<Usuario> membros = registry.membrosDoGrupo("#trabalho");
+        assertEquals(2, membros.size());
+        assertTrue(membros.contains(ana));
+        assertTrue(membros.contains(bruno));
+        assertTrue(registry.gruposDisponiveis().contains("#trabalho"));
+    }
+}

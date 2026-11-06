@@ -153,6 +153,43 @@ class ChatServiceTest {
     }
 
     @Test
+    void mensagemPrivadaDeveEntregarApenasAoRemetenteEAoDestinatario() {
+        FakeConexao ana = new FakeConexao("ana");
+        FakeConexao bruno = new FakeConexao("bruno");
+        FakeConexao carlos = new FakeConexao("carlos");
+        service.conectar(ana);
+        service.conectar(bruno);
+        service.conectar(carlos);
+        carlos.getRecebidas().clear();
+
+        service.enviarMensagemPrivada(ana.getUsuario(), "bruno", "segredo");
+
+        assertTrue(ana.getRecebidas().stream().anyMatch(l -> l.contains("segredo")));
+        assertTrue(bruno.getRecebidas().stream().anyMatch(l -> l.contains("segredo")));
+        assertTrue(carlos.getRecebidas().isEmpty());
+    }
+
+    @Test
+    void mensagemDeGrupoDeveEntregarApenasAosMembrosDoGrupo() {
+        FakeConexao ana = new FakeConexao("ana");
+        FakeConexao bruno = new FakeConexao("bruno");
+        FakeConexao carlos = new FakeConexao("carlos");
+        service.conectar(ana);
+        service.conectar(bruno);
+        service.conectar(carlos);
+
+        service.entrarNoGrupo(ana, "#devs");
+        service.entrarNoGrupo(bruno, "#devs");
+        carlos.getRecebidas().clear();
+
+        service.enviarMensagemGrupo(ana.getUsuario(), "#devs", "codigo pronto");
+
+        assertTrue(ana.getRecebidas().stream().anyMatch(l -> l.contains("codigo pronto")));
+        assertTrue(bruno.getRecebidas().stream().anyMatch(l -> l.contains("codigo pronto")));
+        assertFalse(carlos.getRecebidas().stream().anyMatch(l -> l.contains("codigo pronto")));
+    }
+
+    @Test
     void broadcastConcorrenteNaoDevePerderNemCorromperMensagens() throws Exception {
         int clientes = 10;
         int mensagensPorCliente = 50;
@@ -184,9 +221,10 @@ class ChatServiceTest {
         List<String> ordemDoBanco = repository.todas().stream()
             .map(Mensagem::formatar).toList();
         for (FakeConexao c : conexoes) {
-            // Todos recebem tudo, na mesma ordem em que foi salvo no banco.
-            assertEquals(ordemDoBanco, c.getRecebidas());
+            List<String> apenasMensagens = c.getRecebidas().stream()
+                .filter(l -> l.startsWith("["))
+                .toList();
+            assertEquals(ordemDoBanco, apenasMensagens);
         }
     }
 }
-
