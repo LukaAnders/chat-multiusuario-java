@@ -1,6 +1,7 @@
 package br.com.luka.chat.bot;
 
 import br.com.luka.chat.client.ConexaoRedeCliente;
+import br.com.luka.chat.service.ChatService;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -12,8 +13,8 @@ import java.util.concurrent.Executors;
 
 /**
  * Cliente autônomo de IA que conecta ao chat e responde às perguntas
- * direcionadas a ele (@gemini ou /ia).
- * 
+ * direcionadas a ele (no privado, em grupos com @gemini ou no console).
+ *
  * Executa as chamadas de IA de forma assincrona para nao bloquear a recepcao de rede.
  */
 public class BotIaCliente {
@@ -50,56 +51,91 @@ public class BotIaCliente {
     }
 
     private void processarMensagemRecebida(String linha) {
-        // Ignora avisos do sistema (* ...) ou mensagens de erro (! ...)
-        if (linha.startsWith("*") || linha.startsWith("!")) {
+        if (linha.startsWith("*") || linha.startsWith("!") || linha.startsWith(ChatService.PREFIXO_CONTATOS)) {
             return;
         }
 
-        // Formato esperado do servidor: [dd/MM HH:mm] remetente: conteudo
-        int posFimHorario = linha.indexOf("] ");
-        if (posFimHorario == -1) {
-            return;
-        }
-
-        String resto = linha.substring(posFimHorario + 2);
-        int posDoisPontos = resto.indexOf(": ");
-        if (posDoisPontos == -1) {
-            return;
-        }
-
-        String remetente = resto.substring(0, posDoisPontos).trim();
-        String conteudo = resto.substring(posDoisPontos + 2).trim();
-
-        // Evita que o bot responda a si mesmo (loop infinito)
-        if (remetente.equalsIgnoreCase(NICKNAME_PADRAO)) {
-            return;
-        }
-
-        String conteudoLower = conteudo.toLowerCase();
-        boolean deveResponder = conteudoLower.contains(GATILHO_MACAO)
-                || conteudoLower.contains(GATILHO_IA)
-                || conteudoLower.startsWith(GATILHO_COMANDO);
-
-        if (deveResponder) {
-            String pergunta = limparGatilhos(conteudo);
-            if (pergunta.isBlank()) {
-                pergunta = "olá";
-            }
-
-            final String perguntaFinal = pergunta;
-            // Executa em thread separada para não bloquear a leitura do socket
-            poolProcessamento.submit(() -> {
-                try {
-                    String resposta = servicoIa.responder(remetente, perguntaFinal);
-                    conexao.enviar("@" + remetente + " " + resposta);
-                } catch (Exception e) {
-                    conexao.enviar("@" + remetente + " Desculpe, tive um problema ao processar sua pergunta.");
+        // 1. Mensagem Privada direta para o Bot: ~PRIV|remetente|Gemini|[dd/MM HH:mm] nome: texto
+        if (linha.startsWith(ChatService.PREFIXO_PRIVADA)) {
+            String[] partes = linha.substring(ChatService.PREFIXO_PRIVADA.length()).split("\\|", 3);
+            if (partes.length == 3) {
+                String remetente = partes[0].trim();
+                if (remetente.equalsIgnoreCase(NICKNAME_PADRAO)) {
+                    return;
                 }
-            });
+                String conteudo = extrairConteudoFormatado(partes[2]);
+                responderAssincrono(remetente, limparGatilhos(conteudo), "/msg " + remetente + " ");
+            }
+            return;
+        }
+
+        // 2. Mensagem em Grupo: ~GRUPO|#grupo|[dd/MM HH:mm] nome: texto
+        if (linha.startsWith(ChatService.PREFIXO_GRUPO)) {
+            String resto = linha.substring(ChatService.PREFIXO_GRUPO.length());
+            int pipe = resto.indexOf('|');
+            if (pipe != -1) {
+                String grupo = resto.substring(0, pipe).trim();
+                String msgFormatada = resto.substring(pipe + 1);
+                if (msgFormatada.startsWith("*")) {
+                    return;
+                }
+                String remetente = extrairRemetenteFormatado(msgFormatada);
+                String conteudo = extrairConteudoFormatado(msgFormatada);
+                if (remetente != null && !remetente.equalsIgnoreCase(NICKNAME_PADRAO) && contemGatilho(conteudo)) {
+                    responderAssincrono(remetente, limparGatilhos(conteudo), "/grupo " + grupo + " ");
+                }
+            }
+            return;
+        }
+
+        // 3. Mensagem do console legado: [dd/MM HH:mm] remetente: conteudo
+        String remetente = extrairRemetenteFormatado(linha);
+        String conteudo = extrairConteudoFormatado(linha);
+        if (remetente != null && !remetente.equalsIgnoreCase(NICKNAME_PADRAO) && contemGatilho(conteudo)) {
+            responderAssincrono(remetente, limparGatilhos(conteudo), "");
         }
     }
 
+    private void responderAssincrono(String remetente, String perguntaLimpa, String prefixoComando) {
+        final String perguntaFinal = perguntaLimpa.isBlank() ? "olá" : perguntaLimpa;
+        poolProcessamento.submit(() -> {
+            try {
+                String resposta = servicoIa.responder(remetente, perguntaFinal);
+                conexao.enviar(prefixoComando + resposta);
+            } catch (Exception e) {
+                conexao.enviar(prefixoComando + "Desculpe, tive um problema ao processar sua pergunta.");
+            }
+        });
+    }
+
+    private boolean contemGatilho(String conteudo) {
+        if (conteudo == null) return false;
+        String lower = conteudo.toLowerCase();
+        return lower.contains(GATILHO_MACAO)
+                || lower.contains(GATILHO_IA)
+                || lower.startsWith(GATILHO_COMANDO);
+    }
+
+    private String extrairRemetenteFormatado(String msgFormatada) {
+        int posFimHorario = msgFormatada.indexOf("] ");
+        if (posFimHorario == -1) return null;
+        String resto = msgFormatada.substring(posFimHorario + 2);
+        int posDoisPontos = resto.indexOf(": ");
+        if (posDoisPontos == -1) return null;
+        return resto.substring(0, posDoisPontos).trim();
+    }
+
+    private String extrairConteudoFormatado(String msgFormatada) {
+        int posFimHorario = msgFormatada.indexOf("] ");
+        if (posFimHorario == -1) return msgFormatada;
+        String resto = msgFormatada.substring(posFimHorario + 2);
+        int posDoisPontos = resto.indexOf(": ");
+        if (posDoisPontos == -1) return resto;
+        return resto.substring(posDoisPontos + 2).trim();
+    }
+
     private String limparGatilhos(String texto) {
+        if (texto == null) return "";
         return texto.replaceAll("(?i)" + GATILHO_MACAO, "")
                     .replaceAll("(?i)" + GATILHO_IA, "")
                     .replaceAll("(?i)^" + GATILHO_COMANDO, "")
@@ -107,13 +143,11 @@ public class BotIaCliente {
     }
 
     public static ServicoIa resolverServicoIa() {
-        // 1. Tenta obter da variavel de ambiente GEMINI_API_KEY
         String chave = System.getenv("GEMINI_API_KEY");
         if (chave != null && !chave.isBlank()) {
             return new GeminiServicoIa(chave.trim());
         }
 
-        // 2. Tenta ler do arquivo chat.local.properties (ignorado no git)
         Path arquivoConfig = Path.of("chat.local.properties");
         if (Files.exists(arquivoConfig)) {
             Properties props = new Properties();
@@ -127,7 +161,6 @@ public class BotIaCliente {
             }
         }
 
-        // 3. Fallback: modo simulado seguro para avaliacao sem configuracao externa
         return new SimuladoServicoIa();
     }
 
@@ -140,11 +173,9 @@ public class BotIaCliente {
         BotIaCliente bot = new BotIaCliente(host, porta, servico);
         bot.iniciar(nick);
 
-        // Mantem a thread principal viva ouvindo o processo
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("Encerrando Bot IA...");
             bot.conexao.desconectar();
         }));
     }
 }
-

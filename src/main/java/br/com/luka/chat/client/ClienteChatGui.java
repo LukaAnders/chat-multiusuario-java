@@ -1,6 +1,5 @@
 package br.com.luka.chat.client;
 
-import br.com.luka.chat.model.Mensagem;
 import br.com.luka.chat.server.Protocolo;
 import br.com.luka.chat.service.ChatService;
 
@@ -26,8 +25,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Cliente com Interface Grafica Estilo WhatsApp (Sidebar com Grupos e Conversas
- * Privadas + Seletor Dinamico de Temas).
+ * Cliente com Interface Grafica Estilo WhatsApp (Apenas Conversas Privadas
+ * e Grupos com participantes selecionados + Seletor Dinamico de Temas).
  *
  * Regra de concorrencia: a thread de rede NUNCA altera componentes
  * graficos diretamente; todas as atualizacoes sao despachadas via
@@ -126,11 +125,11 @@ public class ClienteChatGui extends JFrame {
     private final JList<String> listaConversas;
 
     // Estado das conversas (manipulado exclusivamente na EDT do Swing)
-    private String conversaAtiva = Mensagem.DESTINO_GERAL;
+    private String conversaAtiva = null;
     private final Map<String, List<String>> mensagensPorConversa = new HashMap<>();
     private final Map<String, Integer> naoLidasPorConversa = new HashMap<>();
     private final Set<String> conversasComHistoricoCarregado = new HashSet<>();
-    private final Set<String> gruposConhecidos = new LinkedHashSet<>();
+    private final Set<String> meusGrupos = new LinkedHashSet<>();
     private final Set<String> usuariosConhecidos = new LinkedHashSet<>();
 
     private Tema temaAtual = Tema.ESCURO;
@@ -139,9 +138,6 @@ public class ClienteChatGui extends JFrame {
 
     public ClienteChatGui() {
         super("Chat Multiusuário POO");
-
-        gruposConhecidos.add(Mensagem.DESTINO_GERAL);
-        conversasComHistoricoCarregado.add(Mensagem.DESTINO_GERAL);
 
         setSize(880, 600);
         setMinimumSize(new Dimension(680, 450));
@@ -157,7 +153,7 @@ public class ClienteChatGui extends JFrame {
         labelStatus.setFont(new Font("Segoe UI", Font.BOLD, 13));
         painelTopo.add(labelStatus, BorderLayout.WEST);
 
-        labelConversaAtiva = new JLabel("🌐 Sala Pública: #geral", SwingConstants.CENTER);
+        labelConversaAtiva = new JLabel("Selecione um contato ou grupo ao lado", SwingConstants.CENTER);
         labelConversaAtiva.setFont(new Font("Segoe UI", Font.BOLD, 14));
         painelTopo.add(labelConversaAtiva, BorderLayout.CENTER);
 
@@ -185,7 +181,7 @@ public class ClienteChatGui extends JFrame {
 
         // 2. Painel Lateral Esquerdo (Sidebar Estilo WhatsApp)
         painelSidebar = new JPanel(new BorderLayout(0, 8));
-        painelSidebar.setPreferredSize(new Dimension(235, 0));
+        painelSidebar.setPreferredSize(new Dimension(240, 0));
         painelSidebar.setBorder(new EmptyBorder(8, 12, 14, 8));
 
         painelTopoSidebar = new JPanel(new BorderLayout(6, 6));
@@ -199,7 +195,7 @@ public class ClienteChatGui extends JFrame {
         botaoNovoGrupo.setFocusPainted(false);
         botaoNovoGrupo.setBorderPainted(false);
         botaoNovoGrupo.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        botaoNovoGrupo.setBorder(new EmptyBorder(6, 10, 6, 10));
+        botaoNovoGrupo.setBorder(new EmptyBorder(7, 10, 7, 10));
         botaoNovoGrupo.setEnabled(false);
         botaoNovoGrupo.addActionListener(e -> dialogCriarGrupo());
 
@@ -275,7 +271,6 @@ public class ClienteChatGui extends JFrame {
         painelInferior.add(campoTexto, BorderLayout.CENTER);
         painelInferior.add(botaoEnviar, BorderLayout.EAST);
 
-        // Agrupa area central + barra inferior na direita
         JPanel painelDireito = new JPanel(new BorderLayout());
         painelDireito.setOpaque(false);
         painelDireito.add(scrollChat, BorderLayout.CENTER);
@@ -297,28 +292,81 @@ public class ClienteChatGui extends JFrame {
         aplicarTema(Tema.ESCURO);
     }
 
+    /**
+     * Abre uma janela permitindo digitar o nome do grupo e marcar com checkboxes
+     * quais pessoas conectadas serao adicionadas ao grupo.
+     */
     private void dialogCriarGrupo() {
-        String nome = JOptionPane.showInputDialog(
+        JPanel painel = new JPanel(new BorderLayout(8, 10));
+        painel.setPreferredSize(new Dimension(320, 260));
+
+        JPanel painelNome = new JPanel(new BorderLayout(4, 4));
+        painelNome.add(new JLabel("Nome do Grupo:"), BorderLayout.NORTH);
+        JTextField campoNomeGrupo = new JTextField();
+        painelNome.add(campoNomeGrupo, BorderLayout.CENTER);
+        painel.add(painelNome, BorderLayout.NORTH);
+
+        JPanel painelPessoas = new JPanel();
+        painelPessoas.setLayout(new BoxLayout(painelPessoas, BoxLayout.Y_AXIS));
+        List<JCheckBox> checkboxes = new ArrayList<>();
+
+        for (String user : usuariosConhecidos) {
+            if (nickname == null || !user.equalsIgnoreCase(nickname)) {
+                JCheckBox cb = new JCheckBox("@" + user);
+                cb.putClientProperty("username", user);
+                cb.setSelected(true); // por padrao ja vem marcado para facilitar
+                checkboxes.add(cb);
+                painelPessoas.add(cb);
+            }
+        }
+
+        if (checkboxes.isEmpty()) {
+            JLabel vazio = new JLabel("<html><i>Nenhum outro usuário online no momento.<br>Você ainda pode criar o grupo!</i></html>");
+            vazio.setBorder(new EmptyBorder(8, 4, 8, 4));
+            painelPessoas.add(vazio);
+        }
+
+        JScrollPane scrollPessoas = new JScrollPane(painelPessoas);
+        scrollPessoas.setBorder(BorderFactory.createTitledBorder("Escolha as pessoas para adicionar:"));
+        painel.add(scrollPessoas, BorderLayout.CENTER);
+
+        int res = JOptionPane.showConfirmDialog(
                 this,
-                "Digite o nome do grupo (ex: trabalho-poo, jogos):",
-                "Criar ou Entrar em Grupo",
+                painel,
+                "Novo Grupo",
+                JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE
         );
-        if (nome == null || nome.trim().isEmpty()) {
+
+        if (res != JOptionPane.OK_OPTION) {
             return;
         }
-        String grupo = nome.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "-");
+
+        String nome = campoNomeGrupo.getText().trim();
+        if (nome.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Informe um nome para o grupo.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String grupo = nome.toLowerCase(Locale.ROOT).replaceAll("\\s+", "-");
         if (!grupo.startsWith("#")) {
             grupo = "#" + grupo;
         }
 
-        gruposConhecidos.add(grupo);
+        List<String> escolhidos = new ArrayList<>();
+        for (JCheckBox cb : checkboxes) {
+            if (cb.isSelected()) {
+                escolhidos.add((String) cb.getClientProperty("username"));
+            }
+        }
+
+        meusGrupos.add(grupo);
         conversasComHistoricoCarregado.add(grupo);
         atualizarModeloSidebar();
         selecionarConversa(grupo);
 
-        final String cmdGrupo = grupo;
-        new Thread(() -> conexao.enviar("/entrar " + cmdGrupo), "thread-entrar-grupo").start();
+        final String cmd = Protocolo.COMANDO_CRIAR_GRUPO + grupo + " " + String.join(",", escolhidos);
+        new Thread(() -> conexao.enviar(cmd), "thread-criar-grupo").start();
     }
 
     private void selecionarConversa(String alvo) {
@@ -327,23 +375,21 @@ public class ClienteChatGui extends JFrame {
         listaConversas.setSelectedValue(alvo, true);
         listaConversas.repaint();
 
-        if (alvo.equals(Mensagem.DESTINO_GERAL)) {
-            labelConversaAtiva.setText("🌐 Sala Pública: #geral");
-        } else if (alvo.startsWith("#")) {
+        if (alvo.startsWith("#")) {
             labelConversaAtiva.setText("👥 Grupo: " + alvo);
         } else if (alvo.startsWith("@")) {
-            labelConversaAtiva.setText("💬 Conversa Privada com " + alvo);
+            labelConversaAtiva.setText("💬 Conversa com " + alvo);
         }
+
+        boolean podeEnviar = conexao != null && conexao.isConectado();
+        campoTexto.setEnabled(podeEnviar);
+        botaoEnviar.setEnabled(podeEnviar);
 
         recarregarHtmlDaConversaAtiva();
 
-        // Se nunca abriu essa conversa nesta sessao, pede o historico ao servidor
-        if (conexao != null && conexao.isConectado() && conversasComHistoricoCarregado.add(alvo)) {
-            if (alvo.startsWith("#") && !alvo.equals(Mensagem.DESTINO_GERAL)) {
-                new Thread(() -> conexao.enviar("/entrar " + alvo), "thread-hist-grupo").start();
-            } else if (alvo.startsWith("@")) {
-                new Thread(() -> conexao.enviar("/historico " + alvo), "thread-hist-priv").start();
-            }
+        // Na primeira vez que abre a conversa, carrega o historico do banco H2
+        if (podeEnviar && conversasComHistoricoCarregado.add(alvo)) {
+            new Thread(() -> conexao.enviar("/historico " + alvo), "thread-hist").start();
         }
         campoTexto.requestFocusInWindow();
     }
@@ -352,6 +398,19 @@ public class ClienteChatGui extends JFrame {
         areaChat.setText("");
         docHtml = (HTMLDocument) areaChat.getDocument();
         aplicarRegrasCss();
+
+        if (conversaAtiva == null) {
+            try {
+                String boasVindas = "<div style='text-align:center; margin-top: 120px;'>"
+                        + "<h2 style='color:" + temaAtual.cssUserOther + ";'>💬 Suas Conversas</h2>"
+                        + "<p style='color:" + temaAtual.cssTime + ";'>Clique em um <b>@usuário</b> na barra lateral para conversar no privado<br>"
+                        + "ou clique em <b>+ Novo Grupo</b> para criar um grupo escolhendo os participantes.</p>"
+                        + "</div>";
+                kitHtml.insertHTML(docHtml, docHtml.getLength(), boasVindas, 0, 0, null);
+            } catch (Exception ignored) {
+            }
+            return;
+        }
 
         List<String> blocos = mensagensPorConversa.getOrDefault(conversaAtiva, List.of());
         for (String html : blocos) {
@@ -364,8 +423,10 @@ public class ClienteChatGui extends JFrame {
     }
 
     private void adicionarMensagemNaConversa(String chaveConversa, String html) {
+        if (chaveConversa == null) {
+            return;
+        }
         List<String> lista = mensagensPorConversa.computeIfAbsent(chaveConversa, k -> new ArrayList<>());
-        // Evita duplicar linhas idênticas quando o histórico é recarregado
         if (!lista.isEmpty() && lista.get(lista.size() - 1).equals(html)) {
             return;
         }
@@ -387,7 +448,7 @@ public class ClienteChatGui extends JFrame {
         String selecionadaAntes = conversaAtiva;
         modeloConversas.clear();
 
-        for (String grupo : gruposConhecidos) {
+        for (String grupo : meusGrupos) {
             modeloConversas.addElement(grupo);
         }
         for (String user : usuariosConhecidos) {
@@ -396,10 +457,11 @@ public class ClienteChatGui extends JFrame {
             }
         }
 
-        if (modeloConversas.contains(selecionadaAntes)) {
+        if (selecionadaAntes != null && modeloConversas.contains(selecionadaAntes)) {
             listaConversas.setSelectedValue(selecionadaAntes, false);
-        } else {
-            listaConversas.setSelectedValue(Mensagem.DESTINO_GERAL, false);
+        } else if (selecionadaAntes == null && !modeloConversas.isEmpty()) {
+            // Seleciona automaticamente a primeira conversa quando aparecer
+            selecionarConversa(modeloConversas.getElementAt(0));
         }
     }
 
@@ -527,10 +589,12 @@ public class ClienteChatGui extends JFrame {
                     setTitle("Chat Multiusuário — @" + nick);
                     labelStatus.setText("● Online como @" + nick);
                     labelStatus.setForeground(COR_STATUS_ONLINE);
-                    campoTexto.setEnabled(true);
-                    botaoEnviar.setEnabled(true);
                     botaoNovoGrupo.setEnabled(true);
-                    campoTexto.requestFocusInWindow();
+                    if (conversaAtiva != null) {
+                        campoTexto.setEnabled(true);
+                        botaoEnviar.setEnabled(true);
+                        campoTexto.requestFocusInWindow();
+                    }
                 });
             } catch (IOException e) {
                 SwingUtilities.invokeLater(() -> {
@@ -550,7 +614,7 @@ public class ClienteChatGui extends JFrame {
 
     private void receberLinhaDoServidor(String linha) {
         SwingUtilities.invokeLater(() -> {
-            // 1. Atualizacao de contatos e grupos: ~CONTATOS|u1,u2|#geral,#devs
+            // 1. Atualizacao de contatos e grupos: ~CONTATOS|u1,u2|#devs
             if (linha.startsWith(ChatService.PREFIXO_CONTATOS)) {
                 processarAtualizacaoContatos(linha.substring(ChatService.PREFIXO_CONTATOS.length()));
                 return;
@@ -563,7 +627,7 @@ public class ClienteChatGui extends JFrame {
                 if (pipe != -1) {
                     String grupo = resto.substring(0, pipe).trim().toLowerCase(Locale.ROOT);
                     String msgFormatada = resto.substring(pipe + 1);
-                    if (gruposConhecidos.add(grupo)) {
+                    if (meusGrupos.add(grupo)) {
                         atualizarModeloSidebar();
                     }
                     adicionarMensagemNaConversa(grupo, formatarLinhaEmHtml(msgFormatada));
@@ -590,15 +654,16 @@ public class ClienteChatGui extends JFrame {
                 }
             }
 
-            // 4. Erros do protocolo (! ...) aparecem na conversa ativa
+            // 4. Erros do protocolo (! ...)
             if (linha.startsWith(Protocolo.PREFIXO_ERRO)) {
-                String msgErro = escaparHtml(linha.substring(Protocolo.PREFIXO_ERRO.length()));
-                adicionarMensagemNaConversa(conversaAtiva, "<div class='error'>⚠ " + msgErro + "</div>");
-                return;
+                String msgErro = linha.substring(Protocolo.PREFIXO_ERRO.length());
+                if (conversaAtiva != null) {
+                    adicionarMensagemNaConversa(conversaAtiva, "<div class='error'>⚠ " + escaparHtml(msgErro) + "</div>");
+                } else {
+                    JOptionPane.showMessageDialog(this, msgErro, "Aviso", JOptionPane.WARNING_MESSAGE);
+                }
             }
-
-            // 5. Mensagens publicas ou avisos de sistema vao para #geral
-            adicionarMensagemNaConversa(Mensagem.DESTINO_GERAL, formatarLinhaEmHtml(linha));
+            // Ignora mensagens do antigo #geral na GUI
         });
     }
 
@@ -616,7 +681,7 @@ public class ClienteChatGui extends JFrame {
             for (String g : blocos[1].split(",")) {
                 String grupo = g.trim().toLowerCase(Locale.ROOT);
                 if (!grupo.isEmpty()) {
-                    gruposConhecidos.add(grupo);
+                    meusGrupos.add(grupo);
                 }
             }
         }
@@ -662,7 +727,9 @@ public class ClienteChatGui extends JFrame {
         SwingUtilities.invokeLater(() -> {
             labelStatus.setText("● " + status);
             labelStatus.setForeground(new Color(237, 66, 69));
-            adicionarMensagemNaConversa(conversaAtiva, "<div class='system'>[ " + escaparHtml(status) + " ]</div>");
+            if (conversaAtiva != null) {
+                adicionarMensagemNaConversa(conversaAtiva, "<div class='system'>[ " + escaparHtml(status) + " ]</div>");
+            }
             campoTexto.setEnabled(false);
             botaoEnviar.setEnabled(false);
             botaoNovoGrupo.setEnabled(false);
@@ -671,7 +738,7 @@ public class ClienteChatGui extends JFrame {
 
     private void enviarMensagem() {
         String texto = campoTexto.getText().trim();
-        if (texto.isEmpty()) {
+        if (texto.isEmpty() || conversaAtiva == null) {
             return;
         }
 
@@ -684,19 +751,14 @@ public class ClienteChatGui extends JFrame {
         final String destinoAtual = conversaAtiva;
 
         new Thread(() -> {
-            // Se o proprio usuario digitou um comando manual (/msg, /entrar), envia direto
             if (texto.startsWith("/")) {
                 conexao.enviar(texto);
                 return;
             }
-            if (destinoAtual.equals(Mensagem.DESTINO_GERAL)) {
-                conexao.enviar(texto);
-            } else if (destinoAtual.startsWith("#")) {
+            if (destinoAtual.startsWith("#")) {
                 conexao.enviar("/grupo " + destinoAtual + " " + texto);
             } else if (destinoAtual.startsWith("@")) {
                 conexao.enviar("/msg " + destinoAtual.substring(1) + " " + texto);
-            } else {
-                conexao.enviar(texto);
             }
         }, "thread-envio-gui").start();
     }
@@ -717,8 +779,7 @@ public class ClienteChatGui extends JFrame {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             String item = String.valueOf(value);
 
-            String icone = item.equals(Mensagem.DESTINO_GERAL) ? "🌐 "
-                         : item.startsWith("#") ? "👥 " : "💬 ";
+            String icone = item.startsWith("#") ? "👥 " : "💬 ";
             int naoLidas = naoLidasPorConversa.getOrDefault(item, 0);
             String badge = naoLidas > 0 ? "   ● (" + naoLidas + ")" : "";
 
