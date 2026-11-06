@@ -14,6 +14,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Implementacao JDBC. Todo SQL do projeto fica aqui.
@@ -22,9 +23,14 @@ import java.util.List;
 public class JdbcMensagemRepository implements MensagemRepository {
 
     private static final String SQL_INSERIR =
-        "INSERT INTO mensagem (remetente, conteudo, horario) VALUES (?, ?, ?)";
-    private static final String SQL_ULTIMAS =
-        "SELECT id, remetente, conteudo, horario FROM mensagem ORDER BY id DESC LIMIT ?";
+        "INSERT INTO mensagem (remetente, destino, conteudo, horario) VALUES (?, ?, ?, ?)";
+    private static final String SQL_POR_DESTINO =
+        "SELECT id, remetente, destino, conteudo, horario FROM mensagem WHERE LOWER(destino) = LOWER(?) ORDER BY id DESC LIMIT ?";
+    private static final String SQL_PRIVADAS =
+        "SELECT id, remetente, destino, conteudo, horario FROM mensagem "
+        + "WHERE (LOWER(remetente) = LOWER(?) AND LOWER(destino) = LOWER(?)) "
+        + "   OR (LOWER(remetente) = LOWER(?) AND LOWER(destino) = LOWER(?)) "
+        + "ORDER BY id DESC LIMIT ?";
 
     private final ConnectionFactory fabrica;
 
@@ -39,8 +45,9 @@ public class JdbcMensagemRepository implements MensagemRepository {
                  SQL_INSERIR, Statement.RETURN_GENERATED_KEYS)) {
 
             comando.setString(1, mensagem.getRemetente().getNome());
-            comando.setString(2, mensagem.getConteudo());
-            comando.setTimestamp(3, Timestamp.valueOf(mensagem.getHorario()));
+            comando.setString(2, mensagem.getDestino());
+            comando.setString(3, mensagem.getConteudo());
+            comando.setTimestamp(4, Timestamp.valueOf(mensagem.getHorario()));
             comando.executeUpdate();
 
             try (ResultSet chaves = comando.getGeneratedKeys()) {
@@ -56,26 +63,65 @@ public class JdbcMensagemRepository implements MensagemRepository {
 
     @Override
     public List<Mensagem> buscarUltimas(int quantidade) {
+        return buscarPorDestino(Mensagem.DESTINO_GERAL, quantidade);
+    }
+
+    @Override
+    public List<Mensagem> buscarPorDestino(String destino, int quantidade) {
         List<Mensagem> mensagens = new ArrayList<>();
         try (Connection conexao = fabrica.abrir();
-             PreparedStatement comando = conexao.prepareStatement(SQL_ULTIMAS)) {
+             PreparedStatement comando = conexao.prepareStatement(SQL_POR_DESTINO)) {
 
-            comando.setInt(1, quantidade);
+            comando.setString(1, destino.trim().toLowerCase(Locale.ROOT));
+            comando.setInt(2, quantidade);
             try (ResultSet resultado = comando.executeQuery()) {
                 while (resultado.next()) {
-                    mensagens.add(new Mensagem(
-                        resultado.getLong("id"),
-                        new Usuario(resultado.getString("remetente")),
-                        resultado.getString("conteudo"),
-                        resultado.getTimestamp("horario").toLocalDateTime()
-                    ));
+                    mensagens.add(mapearMensagem(resultado));
                 }
             }
         } catch (SQLException e) {
-            throw new PersistenciaException("Falha ao buscar historico", e);
+            throw new PersistenciaException("Falha ao buscar historico por destino", e);
         }
-        Collections.reverse(mensagens); // mais antiga primeiro
+        Collections.reverse(mensagens);
         return mensagens;
     }
-}
 
+    @Override
+    public List<Mensagem> buscarPrivadas(Usuario usuarioA, Usuario usuarioB, int quantidade) {
+        List<Mensagem> mensagens = new ArrayList<>();
+        String nomeA = usuarioA.getNome().toLowerCase(Locale.ROOT);
+        String nomeB = usuarioB.getNome().toLowerCase(Locale.ROOT);
+        String destA = "@" + nomeA;
+        String destB = "@" + nomeB;
+
+        try (Connection conexao = fabrica.abrir();
+             PreparedStatement comando = conexao.prepareStatement(SQL_PRIVADAS)) {
+
+            comando.setString(1, nomeA);
+            comando.setString(2, destB);
+            comando.setString(3, nomeB);
+            comando.setString(4, destA);
+            comando.setInt(5, quantidade);
+
+            try (ResultSet resultado = comando.executeQuery()) {
+                while (resultado.next()) {
+                    mensagens.add(mapearMensagem(resultado));
+                }
+            }
+        } catch (SQLException e) {
+            throw new PersistenciaException("Falha ao buscar historico privado", e);
+        }
+        Collections.reverse(mensagens);
+        return mensagens;
+    }
+
+    private Mensagem mapearMensagem(ResultSet resultado) throws SQLException {
+        return new Mensagem(
+            resultado.getLong("id"),
+            new Usuario(resultado.getString("remetente")),
+            resultado.getString("destino"),
+            resultado.getString("conteudo"),
+            resultado.getTimestamp("horario").toLocalDateTime()
+        );
+    }
+}

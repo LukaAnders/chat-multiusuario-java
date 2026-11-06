@@ -11,7 +11,12 @@ public interface MensagemRepository {
     /** Salva e devolve uma nova instancia com o id gerado. */
     Mensagem salvar(Mensagem mensagem);
 
-    /** Devolve as ultimas mensagens em ordem cronologica (mais antiga primeiro). */
+    /** Devolve as ultimas mensagens da sala #geral em ordem cronologica. */
     List<Mensagem> buscarUltimas(int quantidade);
-}
 
+    /** Devolve as ultimas mensagens de uma sala/grupo especifico (ex: #geral, #trabalho). */
+    List<Mensagem> buscarPorDestino(String destino, int quantidade);
+
+    /** Devolve as ultimas mensagens privadas trocadas entre dois usuarios. */
+    List<Mensagem> buscarPrivadas(Usuario usuarioA, Usuario usuarioB, int quantidade);
+}

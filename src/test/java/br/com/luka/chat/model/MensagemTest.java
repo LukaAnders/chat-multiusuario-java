@@ -43,6 +43,25 @@ class MensagemTest {
     }
 
     @Test
+    void deveAssumirDestinoGeralPorPadrao() {
+        Mensagem mensagem = new Mensagem(LUKA, "Ola!", HORARIO);
+
+        assertEquals(Mensagem.DESTINO_GERAL, mensagem.getDestino());
+        assertFalse(mensagem.ehPrivada());
+    }
+
+    @Test
+    void deveCriarMensagemParaGrupoEPrivada() {
+        Mensagem msgGrupo = new Mensagem(null, LUKA, "#trabalho", "Reuniao hoje", HORARIO);
+        assertEquals("#trabalho", msgGrupo.getDestino());
+        assertFalse(msgGrupo.ehPrivada());
+
+        Mensagem msgPrivada = new Mensagem(null, LUKA, "@ana", "Oi Ana", HORARIO);
+        assertEquals("@ana", msgPrivada.getDestino());
+        assertTrue(msgPrivada.ehPrivada());
+    }
+
+    @Test
     void deveFormatarMensagemParaExibicao() {
         Mensagem mensagem = new Mensagem(LUKA, "Olá!", HORARIO);
 
@@ -50,12 +69,13 @@ class MensagemTest {
     }
 
     @Test
-    void deveNascerSemIdEGerarNovaInstanciaComId() {
-        Mensagem original = new Mensagem(LUKA, "Ola!", HORARIO);
+    void deveNascerSemIdEGerarNovaInstanciaComIdPreservandoDestino() {
+        Mensagem original = new Mensagem(null, LUKA, "#poo", "Ola!", HORARIO);
         Mensagem salva = original.comId(7L);
 
         assertNull(original.getId());
         assertEquals(7L, salva.getId());
+        assertEquals("#poo", salva.getDestino());
         assertEquals(original.getConteudo(), salva.getConteudo());
         assertNotSame(original, salva);
     }

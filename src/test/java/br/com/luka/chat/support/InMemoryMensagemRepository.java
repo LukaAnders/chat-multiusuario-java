@@ -2,9 +2,11 @@ package br.com.luka.chat.support;
 
 import br.com.luka.chat.model.Mensagem;
 import br.com.luka.chat.model.MensagemRepository;
+import br.com.luka.chat.model.Usuario;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** Repositorio em memoria para testes, sem banco real. */
@@ -22,12 +24,33 @@ public class InMemoryMensagemRepository implements MensagemRepository {
 
     @Override
     public synchronized List<Mensagem> buscarUltimas(int quantidade) {
-        int inicio = Math.max(0, mensagens.size() - quantidade);
-        return List.copyOf(mensagens.subList(inicio, mensagens.size()));
+        return buscarPorDestino(Mensagem.DESTINO_GERAL, quantidade);
+    }
+
+    @Override
+    public synchronized List<Mensagem> buscarPorDestino(String destino, int quantidade) {
+        String alvo = destino.trim().toLowerCase(Locale.ROOT);
+        List<Mensagem> filtradas = mensagens.stream()
+            .filter(m -> m.getDestino().equalsIgnoreCase(alvo))
+            .toList();
+        int inicio = Math.max(0, filtradas.size() - quantidade);
+        return List.copyOf(filtradas.subList(inicio, filtradas.size()));
+    }
+
+    @Override
+    public synchronized List<Mensagem> buscarPrivadas(Usuario usuarioA, Usuario usuarioB, int quantidade) {
+        String destA = "@" + usuarioA.getNome().toLowerCase(Locale.ROOT);
+        String destB = "@" + usuarioB.getNome().toLowerCase(Locale.ROOT);
+
+        List<Mensagem> filtradas = mensagens.stream()
+            .filter(m -> (m.getRemetente().equals(usuarioA) && m.getDestino().equalsIgnoreCase(destB))
+                      || (m.getRemetente().equals(usuarioB) && m.getDestino().equalsIgnoreCase(destA)))
+            .toList();
+        int inicio = Math.max(0, filtradas.size() - quantidade);
+        return List.copyOf(filtradas.subList(inicio, filtradas.size()));
     }
 
     public synchronized List<Mensagem> todas() {
         return List.copyOf(mensagens);
     }
 }
-
