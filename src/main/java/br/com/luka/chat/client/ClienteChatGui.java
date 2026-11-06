@@ -40,25 +40,25 @@ public class ClienteChatGui extends JFrame {
                 new Color(30, 31, 34), new Color(43, 45, 49), new Color(56, 58, 64),
                 new Color(242, 243, 245), new Color(160, 168, 180),
                 new Color(88, 101, 242), new Color(71, 82, 196),
-                "#2b2d31", "#35373c", "#233b2e", "#f2f3f5", "#57f287", "#00b0f4", "#949ba4", "#fee75c", "#ed4245"),
+                "#2b2d31", "#313338", "#313338", "#f2f3f5", "#57f287", "#00b0f4", "#949ba4", "#fee75c", "#ed4245"),
 
         CLARO("Claro (Clean)",
                 new Color(240, 242, 245), new Color(255, 255, 255), new Color(228, 231, 236),
                 new Color(28, 30, 33), new Color(101, 103, 107),
                 new Color(0, 132, 255), new Color(0, 110, 215),
-                "#ffffff", "#f0f2f5", "#e7f3ff", "#1c1e21", "#1b873f", "#0066cc", "#65676b", "#b58105", "#d83a56"),
+                "#ffffff", "#f5f6f8", "#f5f6f8", "#1c1e21", "#1b873f", "#0066cc", "#65676b", "#b58105", "#d83a56"),
 
         DRACULA("Drácula (Roxo)",
                 new Color(33, 34, 44), new Color(40, 42, 54), new Color(68, 71, 90),
                 new Color(248, 248, 242), new Color(189, 147, 249),
                 new Color(189, 147, 249), new Color(165, 120, 230),
-                "#282a36", "#343746", "#2d3f3a", "#f8f8f2", "#50fa7b", "#8be9fd", "#92a2d4", "#f1fa8c", "#ff5555"),
+                "#282a36", "#313442", "#313442", "#f8f8f2", "#50fa7b", "#8be9fd", "#92a2d4", "#f1fa8c", "#ff5555"),
 
-        ESMERALDA("Esmeralda (WhatsApp)",
-                new Color(17, 27, 33), new Color(32, 44, 51), new Color(42, 57, 66),
+        ESMERALDA("Esmeralda",
+                new Color(17, 27, 33), new Color(24, 34, 41), new Color(36, 48, 56),
                 new Color(233, 237, 239), new Color(134, 150, 160),
                 new Color(0, 168, 132), new Color(0, 143, 112),
-                "#111b21", "#202c33", "#005c4b", "#e9edef", "#53bdeb", "#00a884", "#8696a0", "#ffd279", "#f15c6d");
+                "#182229", "#202c33", "#202c33", "#e9edef", "#00a884", "#53bdeb", "#8696a0", "#ffd279", "#f15c6d");
 
         final String nome;
         final Color fundoJanela;
@@ -149,7 +149,7 @@ public class ClienteChatGui extends JFrame {
     private final Set<String> meusGrupos = new LinkedHashSet<>();
     private final Set<String> usuariosConhecidos = new LinkedHashSet<>();
 
-    private Tema temaAtual = Tema.ESMERALDA;
+    private Tema temaAtual = Tema.ESCURO;
     private ConexaoRedeCliente conexao;
     private String nickname;
 
