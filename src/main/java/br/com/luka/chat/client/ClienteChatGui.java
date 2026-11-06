@@ -27,10 +27,9 @@ import java.util.Set;
 
 /**
  * Cliente com Interface Grafica Moderna Estilo WhatsApp/Discord:
- * - Avatares circulares desenhados com Graphics2D (sem quadradinhos quebrados)
- * - Baloes de mensagem estilizados
- * - Seletor popup de Emojis
- * - Modais customizados (Conectar e Criar Grupo com participantes)
+ * - Avatares circulares desenhados com Graphics2D
+ * - Baloes de mensagem estilizados e Emojis Coloridos Twemoji
+ * - Gerenciamento completo de grupos (Criar, Adicionar Pessoas, Sair e Apagar)
  * - Seletor dinamico de 4 temas
  */
 public class ClienteChatGui extends JFrame {
@@ -110,18 +109,13 @@ public class ClienteChatGui extends JFrame {
     }
 
     private static final Color COR_STATUS_ONLINE = new Color(35, 165, 89);
-
-    private static final String[] EMOJIS = {
-        "😀", "😂", "🤣", "😊", "😍", "😎",
-        "🤔", "😅", "😢", "😭", "😡", "🤯",
-        "👍", "👎", "👏", "🙌", "🙏", "🤝",
-        "❤️", "🔥", "✨", "🎉", "💯", "🚀",
-        "✅", "❌", "⚡", "💻", "☕", "👀"
-    };
+    private static final Color COR_PERIGO = new Color(218, 55, 60);
+    private static final Color COR_PERIGO_HOVER = new Color(185, 42, 47);
 
     private final JPanel painelTopo;
     private final JPanel painelSidebar;
     private final JPanel painelTopoSidebar;
+    private final JPanel painelAcoesGrupo;
     private final JPanel painelInferior;
     private final JScrollPane scrollChat;
     private final JScrollPane scrollSidebar;
@@ -132,6 +126,9 @@ public class ClienteChatGui extends JFrame {
     private final JButton botaoEmoji;
     private final JButton botaoEnviar;
     private final JButton botaoNovoGrupo;
+    private final JButton botaoAddMembroGrupo;
+    private final JButton botaoSairGrupo;
+    private final JButton botaoApagarGrupo;
     private final JLabel labelStatus;
     private final JLabel labelConversaAtiva;
     private final JLabel labelTituloSidebar;
@@ -156,8 +153,8 @@ public class ClienteChatGui extends JFrame {
     public ClienteChatGui() {
         super("Chat Multiusuário POO");
 
-        setSize(920, 620);
-        setMinimumSize(new Dimension(720, 480));
+        setSize(940, 630);
+        setMinimumSize(new Dimension(740, 490));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -237,7 +234,25 @@ public class ClienteChatGui extends JFrame {
 
         add(painelSidebar, BorderLayout.WEST);
 
-        // 3. Painel Central (Mensagens HTML da conversa selecionada)
+        // 3. Barra de Ações do Grupo (visível apenas quando um #grupo está selecionado)
+        painelAcoesGrupo = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        painelAcoesGrupo.setBorder(new EmptyBorder(10, 6, 8, 16));
+        painelAcoesGrupo.setVisible(false);
+
+        botaoAddMembroGrupo = criarBotaoCompacto("+ Adicionar Pessoa", true, false);
+        botaoAddMembroGrupo.addActionListener(e -> dialogAdicionarPessoasAoGrupo());
+
+        botaoSairGrupo = criarBotaoCompacto("Sair do Grupo", false, false);
+        botaoSairGrupo.addActionListener(e -> acaoSairDoGrupo());
+
+        botaoApagarGrupo = criarBotaoCompacto("Apagar Grupo", false, true);
+        botaoApagarGrupo.addActionListener(e -> acaoApagarGrupo());
+
+        painelAcoesGrupo.add(botaoAddMembroGrupo);
+        painelAcoesGrupo.add(botaoSairGrupo);
+        painelAcoesGrupo.add(botaoApagarGrupo);
+
+        // 4. Painel Central (Mensagens HTML da conversa selecionada)
         areaChat = new JTextPane();
         areaChat.setEditable(false);
         areaChat.setContentType("text/html");
@@ -251,7 +266,7 @@ public class ClienteChatGui extends JFrame {
         scrollChat.getVerticalScrollBar().setUnitIncrement(18);
         estilizarScrollBar(scrollChat);
 
-        // 4. Painel Inferior (Botão de Emoji Colorido + Campo de Texto + Botão Enviar)
+        // 5. Painel Inferior (Botão de Emoji Colorido + Campo de Texto + Botão Enviar)
         painelInferior = new JPanel(new BorderLayout(8, 0));
         painelInferior.setBorder(new EmptyBorder(10, 6, 14, 16));
 
@@ -282,6 +297,7 @@ public class ClienteChatGui extends JFrame {
 
         JPanel painelDireito = new JPanel(new BorderLayout());
         painelDireito.setOpaque(false);
+        painelDireito.add(painelAcoesGrupo, BorderLayout.NORTH);
         painelDireito.add(scrollChat, BorderLayout.CENTER);
         painelDireito.add(painelInferior, BorderLayout.SOUTH);
         add(painelDireito, BorderLayout.CENTER);
@@ -325,6 +341,41 @@ public class ClienteChatGui extends JFrame {
                 }
             });
         }
+        return btn;
+    }
+
+    private JButton criarBotaoCompacto(String texto, boolean primario, boolean perigo) {
+        JButton btn = new JButton(texto);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(new EmptyBorder(6, 12, 6, 12));
+
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (!btn.isEnabled()) return;
+                if (perigo) {
+                    btn.setBackground(COR_PERIGO_HOVER);
+                } else if (primario) {
+                    btn.setBackground(temaAtual.botaoHover);
+                } else {
+                    btn.setBackground(temaAtual.fundoEntrada.brighter());
+                }
+            }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (!btn.isEnabled()) return;
+                if (perigo) {
+                    btn.setBackground(COR_PERIGO);
+                } else if (primario) {
+                    btn.setBackground(temaAtual.botaoPrimario);
+                } else {
+                    btn.setBackground(temaAtual.fundoEntrada);
+                }
+            }
+        });
         return btn;
     }
 
@@ -410,7 +461,6 @@ public class ClienteChatGui extends JFrame {
         conteudo.setOpaque(false);
         conteudo.setBorder(new EmptyBorder(18, 20, 18, 20));
 
-        // Topo: Título e Campo de Nome
         JPanel painelTopoModal = new JPanel(new BorderLayout(0, 6));
         painelTopoModal.setOpaque(false);
 
@@ -433,7 +483,6 @@ public class ClienteChatGui extends JFrame {
         painelTopoModal.add(campoNomeGrupo, BorderLayout.CENTER);
         conteudo.add(painelTopoModal, BorderLayout.NORTH);
 
-        // Centro: Lista de Checkboxes estilizados com os contatos
         JPanel painelLista = new JPanel();
         painelLista.setLayout(new BoxLayout(painelLista, BoxLayout.Y_AXIS));
         painelLista.setBackground(temaAtual.fundoChat);
@@ -442,15 +491,7 @@ public class ClienteChatGui extends JFrame {
         List<JCheckBox> checkboxes = new ArrayList<>();
         for (String user : usuariosConhecidos) {
             if (nickname == null || !user.equalsIgnoreCase(nickname)) {
-                JCheckBox cb = new JCheckBox("  @" + user);
-                cb.putClientProperty("username", user);
-                cb.setSelected(true);
-                cb.setFont(new Font("Segoe UI", Font.BOLD, 13));
-                cb.setBackground(temaAtual.fundoChat);
-                cb.setForeground(temaAtual.textoBranco);
-                cb.setFocusPainted(false);
-                cb.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                cb.setBorder(new EmptyBorder(6, 4, 6, 4));
+                JCheckBox cb = criarCheckBoxModal(user, true);
                 checkboxes.add(cb);
                 painelLista.add(cb);
             }
@@ -477,7 +518,6 @@ public class ClienteChatGui extends JFrame {
         wrapperCentro.add(scrollPessoas, BorderLayout.CENTER);
         conteudo.add(wrapperCentro, BorderLayout.CENTER);
 
-        // Rodapé: Botões Cancelar e Criar
         JPanel painelBotoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         painelBotoes.setOpaque(false);
 
@@ -531,6 +571,185 @@ public class ClienteChatGui extends JFrame {
         dialogo.setVisible(true);
     }
 
+    /**
+     * Modal para adicionar novas pessoas a um grupo que ja existe.
+     */
+    private void dialogAdicionarPessoasAoGrupo() {
+        if (conversaAtiva == null || !conversaAtiva.startsWith("#")) {
+            return;
+        }
+        final String grupoAlvo = conversaAtiva;
+
+        JDialog dialogo = new JDialog(this, "Adicionar ao Grupo " + grupoAlvo, true);
+        dialogo.setSize(370, 340);
+        dialogo.setLocationRelativeTo(this);
+        dialogo.setLayout(new BorderLayout());
+        dialogo.getContentPane().setBackground(temaAtual.fundoJanela);
+
+        JPanel conteudo = new JPanel(new BorderLayout(0, 12));
+        conteudo.setOpaque(false);
+        conteudo.setBorder(new EmptyBorder(18, 20, 18, 20));
+
+        JLabel titulo = new JLabel("Adicionar pessoas a " + grupoAlvo);
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        titulo.setForeground(temaAtual.textoBranco);
+        conteudo.add(titulo, BorderLayout.NORTH);
+
+        JPanel painelLista = new JPanel();
+        painelLista.setLayout(new BoxLayout(painelLista, BoxLayout.Y_AXIS));
+        painelLista.setBackground(temaAtual.fundoChat);
+        painelLista.setBorder(new EmptyBorder(8, 10, 8, 10));
+
+        List<JCheckBox> checkboxes = new ArrayList<>();
+        for (String user : usuariosConhecidos) {
+            if (nickname == null || !user.equalsIgnoreCase(nickname)) {
+                JCheckBox cb = criarCheckBoxModal(user, false);
+                checkboxes.add(cb);
+                painelLista.add(cb);
+            }
+        }
+
+        if (checkboxes.isEmpty()) {
+            JLabel avisoVazio = new JLabel("<html><div style='padding:10px;'>Nenhum outro contato disponível no momento.</div></html>");
+            avisoVazio.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+            avisoVazio.setForeground(temaAtual.textoSecundario);
+            painelLista.add(avisoVazio);
+        }
+
+        JScrollPane scrollPessoas = new JScrollPane(painelLista);
+        scrollPessoas.setBorder(new LineBorder(temaAtual.fundoEntrada, 1, true));
+        estilizarScrollBar(scrollPessoas);
+        conteudo.add(scrollPessoas, BorderLayout.CENTER);
+
+        JPanel painelBotoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        painelBotoes.setOpaque(false);
+
+        JButton btnCancelar = criarBotaoEstilizado("Cancelar", false);
+        btnCancelar.setBackground(temaAtual.fundoEntrada);
+        btnCancelar.setForeground(temaAtual.textoBranco);
+        btnCancelar.addActionListener(e -> dialogo.dispose());
+
+        JButton btnAdicionar = criarBotaoEstilizado("Adicionar", true);
+        btnAdicionar.setBackground(temaAtual.botaoPrimario);
+        btnAdicionar.setForeground(Color.WHITE);
+        btnAdicionar.addActionListener(e -> {
+            List<String> escolhidos = new ArrayList<>();
+            for (JCheckBox cb : checkboxes) {
+                if (cb.isSelected()) {
+                    escolhidos.add((String) cb.getClientProperty("username"));
+                }
+            }
+            if (escolhidos.isEmpty()) {
+                dialogo.dispose();
+                return;
+            }
+            final String cmd = Protocolo.COMANDO_ADD_GRUPO + grupoAlvo + " " + String.join(",", escolhidos);
+            new Thread(() -> conexao.enviar(cmd), "thread-add-grupo").start();
+            dialogo.dispose();
+        });
+
+        painelBotoes.add(btnCancelar);
+        painelBotoes.add(btnAdicionar);
+        conteudo.add(painelBotoes, BorderLayout.SOUTH);
+
+        dialogo.add(conteudo);
+        dialogo.setVisible(true);
+    }
+
+    /**
+     * Sai do grupo atualmente selecionado.
+     */
+    private void acaoSairDoGrupo() {
+        if (conversaAtiva == null || !conversaAtiva.startsWith("#")) {
+            return;
+        }
+        final String grupoAlvo = conversaAtiva;
+        removerGrupoLocalmente(grupoAlvo);
+        new Thread(() -> conexao.enviar(Protocolo.COMANDO_SAIR_GRUPO + grupoAlvo), "thread-sair-grupo").start();
+    }
+
+    /**
+     * Pede confirmacao estilizada e apaga o grupo para todos os participantes.
+     */
+    private void acaoApagarGrupo() {
+        if (conversaAtiva == null || !conversaAtiva.startsWith("#")) {
+            return;
+        }
+        final String grupoAlvo = conversaAtiva;
+
+        JDialog dialogo = new JDialog(this, "Apagar Grupo", true);
+        dialogo.setSize(370, 200);
+        dialogo.setLocationRelativeTo(this);
+        dialogo.setLayout(new BorderLayout());
+        dialogo.getContentPane().setBackground(temaAtual.fundoJanela);
+
+        JPanel conteudo = new JPanel(new BorderLayout(0, 14));
+        conteudo.setOpaque(false);
+        conteudo.setBorder(new EmptyBorder(20, 22, 18, 22));
+
+        JLabel texto = new JLabel("<html><b>Deseja apagar o grupo " + escaparHtml(grupoAlvo) + "?</b><br><br>"
+                + "O grupo e todo o histórico de mensagens serão excluídos para todos os participantes.</html>");
+        texto.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        texto.setForeground(temaAtual.textoBranco);
+        conteudo.add(texto, BorderLayout.CENTER);
+
+        JPanel painelBotoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        painelBotoes.setOpaque(false);
+
+        JButton btnCancelar = criarBotaoCompacto("Cancelar", false, false);
+        btnCancelar.setBackground(temaAtual.fundoEntrada);
+        btnCancelar.setForeground(temaAtual.textoBranco);
+        btnCancelar.addActionListener(e -> dialogo.dispose());
+
+        JButton btnConfirmar = criarBotaoCompacto("Sim, Apagar Grupo", false, true);
+        btnConfirmar.setBackground(COR_PERIGO);
+        btnConfirmar.setForeground(Color.WHITE);
+        btnConfirmar.addActionListener(e -> {
+            dialogo.dispose();
+            removerGrupoLocalmente(grupoAlvo);
+            new Thread(() -> conexao.enviar(Protocolo.COMANDO_APAGAR_GRUPO + grupoAlvo), "thread-apagar-grupo").start();
+        });
+
+        painelBotoes.add(btnCancelar);
+        painelBotoes.add(btnConfirmar);
+        conteudo.add(painelBotoes, BorderLayout.SOUTH);
+
+        dialogo.add(conteudo);
+        dialogo.setVisible(true);
+    }
+
+    private void removerGrupoLocalmente(String grupo) {
+        String chave = grupo.trim().toLowerCase(Locale.ROOT);
+        meusGrupos.remove(chave);
+        mensagensPorConversa.remove(chave);
+        naoLidasPorConversa.remove(chave);
+        conversasComHistoricoCarregado.remove(chave);
+
+        if (chave.equalsIgnoreCase(conversaAtiva)) {
+            conversaAtiva = null;
+            painelAcoesGrupo.setVisible(false);
+            labelConversaAtiva.setText("Selecione uma conversa ao lado");
+            campoTexto.setEnabled(false);
+            botaoEnviar.setEnabled(false);
+            botaoEmoji.setEnabled(false);
+        }
+        atualizarModeloSidebar();
+        recarregarHtmlDaConversaAtiva();
+    }
+
+    private JCheckBox criarCheckBoxModal(String user, boolean marcadoPorPadrao) {
+        JCheckBox cb = new JCheckBox("  @" + user);
+        cb.putClientProperty("username", user);
+        cb.setSelected(marcadoPorPadrao);
+        cb.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        cb.setBackground(temaAtual.fundoChat);
+        cb.setForeground(temaAtual.textoBranco);
+        cb.setFocusPainted(false);
+        cb.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cb.setBorder(new EmptyBorder(6, 4, 6, 4));
+        return cb;
+    }
+
     private JTextField criarCampoTextoModal(String valorInicial) {
         JTextField tf = new JTextField(valorInicial);
         tf.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -550,7 +769,10 @@ public class ClienteChatGui extends JFrame {
         listaConversas.setSelectedValue(alvo, true);
         listaConversas.repaint();
 
-        if (alvo.startsWith("#")) {
+        boolean ehGrupo = alvo.startsWith("#");
+        painelAcoesGrupo.setVisible(ehGrupo);
+
+        if (ehGrupo) {
             labelConversaAtiva.setText("Grupo  " + alvo);
         } else if (alvo.startsWith("@")) {
             labelConversaAtiva.setText("Conversa com  " + alvo);
@@ -650,6 +872,7 @@ public class ClienteChatGui extends JFrame {
                 new EmptyBorder(12, 18, 12, 18)
         ));
         painelSidebar.setBackground(temaAtual.fundoJanela);
+        painelAcoesGrupo.setBackground(temaAtual.fundoJanela);
         painelInferior.setBackground(temaAtual.fundoJanela);
 
         labelConversaAtiva.setForeground(temaAtual.textoBranco);
@@ -658,6 +881,15 @@ public class ClienteChatGui extends JFrame {
 
         botaoNovoGrupo.setBackground(temaAtual.botaoPrimario);
         botaoNovoGrupo.setForeground(Color.WHITE);
+
+        botaoAddMembroGrupo.setBackground(temaAtual.botaoPrimario);
+        botaoAddMembroGrupo.setForeground(Color.WHITE);
+
+        botaoSairGrupo.setBackground(temaAtual.fundoEntrada);
+        botaoSairGrupo.setForeground(temaAtual.textoBranco);
+
+        botaoApagarGrupo.setBackground(COR_PERIGO);
+        botaoApagarGrupo.setForeground(Color.WHITE);
 
         listaConversas.setBackground(temaAtual.fundoChat);
         listaConversas.setForeground(temaAtual.textoBranco);
@@ -839,13 +1071,20 @@ public class ClienteChatGui extends JFrame {
 
     private void receberLinhaDoServidor(String linha) {
         SwingUtilities.invokeLater(() -> {
-            // 1. Atualizacao de contatos e grupos: ~CONTATOS|u1,u2|#devs
+            // 1. Grupo removido ou usuario saiu: ~REMGRUPO|#devs
+            if (linha.startsWith(ChatService.PREFIXO_REMOVER_GRUPO)) {
+                String grupoRem = linha.substring(ChatService.PREFIXO_REMOVER_GRUPO.length()).trim();
+                removerGrupoLocalmente(grupoRem);
+                return;
+            }
+
+            // 2. Atualizacao de contatos e grupos: ~CONTATOS|u1,u2|#devs
             if (linha.startsWith(ChatService.PREFIXO_CONTATOS)) {
                 processarAtualizacaoContatos(linha.substring(ChatService.PREFIXO_CONTATOS.length()));
                 return;
             }
 
-            // 2. Mensagem de grupo especifico: ~GRUPO|#devs|[dd/MM HH:mm] nome: texto
+            // 3. Mensagem de grupo especifico: ~GRUPO|#devs|[dd/MM HH:mm] nome: texto
             if (linha.startsWith(ChatService.PREFIXO_GRUPO)) {
                 String resto = linha.substring(ChatService.PREFIXO_GRUPO.length());
                 int pipe = resto.indexOf('|');
@@ -860,7 +1099,7 @@ public class ClienteChatGui extends JFrame {
                 }
             }
 
-            // 3. Mensagem privada: ~PRIV|remetente|destinatario|[dd/MM HH:mm] nome: texto
+            // 4. Mensagem privada: ~PRIV|remetente|destinatario|[dd/MM HH:mm] nome: texto
             if (linha.startsWith(ChatService.PREFIXO_PRIVADA)) {
                 String resto = linha.substring(ChatService.PREFIXO_PRIVADA.length());
                 String[] partes = resto.split("\\|", 3);
@@ -879,7 +1118,7 @@ public class ClienteChatGui extends JFrame {
                 }
             }
 
-            // 4. Erros do protocolo (! ...)
+            // 5. Erros do protocolo (! ...)
             if (linha.startsWith(Protocolo.PREFIXO_ERRO)) {
                 String msgErro = linha.substring(Protocolo.PREFIXO_ERRO.length());
                 if (conversaAtiva != null) {
@@ -901,14 +1140,17 @@ public class ClienteChatGui extends JFrame {
                 }
             }
         }
+        Set<String> gruposDoServidor = new LinkedHashSet<>();
         if (blocos.length >= 2 && !blocos[1].isBlank()) {
             for (String g : blocos[1].split(",")) {
                 String grupo = g.trim().toLowerCase(Locale.ROOT);
                 if (!grupo.isEmpty()) {
-                    meusGrupos.add(grupo);
+                    gruposDoServidor.add(grupo);
                 }
             }
         }
+        meusGrupos.clear();
+        meusGrupos.addAll(gruposDoServidor);
         atualizarModeloSidebar();
     }
 
@@ -1002,8 +1244,7 @@ public class ClienteChatGui extends JFrame {
 
     /**
      * Renderizador customizado da Sidebar que desenha avatares circulares (com as
-     * iniciais do contato ou '#' para grupos) e badge de nao lidas via Graphics2D,
-     * eliminando qualquer problema de quadradinhos de fonte!
+     * iniciais do contato ou '#' para grupos) e badge de nao lidas via Graphics2D.
      */
     private class RenderizadorConversaModerno extends JPanel implements ListCellRenderer<String> {
 
