@@ -251,19 +251,23 @@ public class ClienteChatGui extends JFrame {
         scrollChat.getVerticalScrollBar().setUnitIncrement(18);
         estilizarScrollBar(scrollChat);
 
-        // 4. Painel Inferior (Botão de Emoji + Campo de Texto + Botão Enviar)
+        // 4. Painel Inferior (Botão de Emoji Colorido + Campo de Texto + Botão Enviar)
         painelInferior = new JPanel(new BorderLayout(8, 0));
         painelInferior.setBorder(new EmptyBorder(10, 6, 14, 16));
 
-        botaoEmoji = new JButton("☺");
-        botaoEmoji.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 18));
-        botaoEmoji.setToolTipText("Inserir Emoji");
+        botaoEmoji = new JButton(EmojiUtil.obterIcone("😊", 20));
+        botaoEmoji.setToolTipText("Inserir Emoji Colorido");
         botaoEmoji.setFocusPainted(false);
         botaoEmoji.setBorderPainted(false);
         botaoEmoji.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        botaoEmoji.setBorder(new EmptyBorder(6, 12, 6, 12));
+        botaoEmoji.setBorder(new EmptyBorder(6, 10, 6, 10));
         botaoEmoji.setEnabled(false);
         botaoEmoji.addActionListener(e -> mostrarSeletorEmojis());
+
+        EmojiUtil.preCarregarAssincrono(() -> {
+            botaoEmoji.setIcon(EmojiUtil.obterIcone("😊", 20));
+            recarregarHtmlDaConversaAtiva();
+        });
 
         campoTexto = new JTextField();
         campoTexto.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
@@ -349,28 +353,25 @@ public class ClienteChatGui extends JFrame {
     }
 
     /**
-     * Abre o popup com grade de emojis para inserir no campo de texto.
+     * Abre o popup com grade de emojis COLORIDOS (PNG Twemoji) para inserir no campo de texto.
      */
     private void mostrarSeletorEmojis() {
         JPopupMenu popup = new JPopupMenu();
         popup.setBackground(temaAtual.fundoJanela);
         popup.setBorder(new LineBorder(temaAtual.botaoPrimario, 1, true));
 
-        JPanel grade = new JPanel(new GridLayout(5, 6, 4, 4));
+        JPanel grade = new JPanel(new GridLayout(6, 6, 4, 4));
         grade.setBackground(temaAtual.fundoJanela);
         grade.setBorder(new EmptyBorder(8, 8, 8, 8));
 
-        Font fonteEmoji = new Font("Segoe UI Emoji", Font.PLAIN, 18);
-
-        for (String emoji : EMOJIS) {
-            JButton btn = new JButton(emoji);
-            btn.setFont(fonteEmoji);
+        for (String emoji : EmojiUtil.getMapaEmojis().keySet()) {
+            JButton btn = new JButton(EmojiUtil.obterIcone(emoji, 22));
+            btn.setToolTipText(emoji);
             btn.setFocusPainted(false);
             btn.setBorderPainted(false);
             btn.setBackground(temaAtual.fundoEntrada);
-            btn.setForeground(temaAtual.textoBranco);
             btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            btn.setBorder(new EmptyBorder(6, 8, 6, 8));
+            btn.setBorder(new EmptyBorder(6, 6, 6, 6));
 
             btn.addMouseListener(new MouseAdapter() {
                 @Override
@@ -392,7 +393,7 @@ public class ClienteChatGui extends JFrame {
         }
 
         popup.add(grade);
-        popup.show(botaoEmoji, 0, -235);
+        popup.show(botaoEmoji, 0, -255);
     }
 
     /**
@@ -913,7 +914,7 @@ public class ClienteChatGui extends JFrame {
 
     private String formatarLinhaEmHtml(String linha) {
         if (linha.startsWith("* ")) {
-            return "<div class='system'>" + escaparHtml(linha) + "</div>";
+            return "<div class='system'>" + EmojiUtil.substituirEmojisPorImgHtml(escaparHtml(linha)) + "</div>";
         }
         if (linha.startsWith("[") && linha.contains("] ")) {
             int fecharColchete = linha.indexOf("] ");
@@ -923,7 +924,7 @@ public class ClienteChatGui extends JFrame {
             int doisPontos = resto.indexOf(": ");
             if (doisPontos != -1) {
                 String remetente = resto.substring(0, doisPontos);
-                String conteudo = escaparHtml(resto.substring(doisPontos + 2));
+                String conteudo = EmojiUtil.substituirEmojisPorImgHtml(escaparHtml(resto.substring(doisPontos + 2)));
 
                 boolean souEu = nickname != null && nickname.equalsIgnoreCase(remetente.trim());
                 String classeBolha = souEu ? "bubble-me" : "bubble-other";
@@ -939,7 +940,8 @@ public class ClienteChatGui extends JFrame {
                         + "</div>";
             }
         }
-        return "<div class='bubble-other'><div class='content'>" + escaparHtml(linha) + "</div></div>";
+        return "<div class='bubble-other'><div class='content'>"
+                + EmojiUtil.substituirEmojisPorImgHtml(escaparHtml(linha)) + "</div></div>";
     }
 
     private String escaparHtml(String texto) {
