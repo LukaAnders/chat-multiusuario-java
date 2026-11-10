@@ -52,5 +52,39 @@ class ServicoIaTest {
         assertTrue(blocosLongos.get(0).length() <= 450);
         assertTrue(blocosLongos.get(1).length() <= 450);
     }
+
+    @Test
+    void groqServicoIaDeveExtrairTextoDeRespostaJsonOpenAiCorretamente() {
+        String jsonGroq = """
+                {
+                  "id": "chatcmpl-123",
+                  "object": "chat.completion",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "message": {
+                        "role": "assistant",
+                        "content": "Olá! Sou a IA rodando via Groq.\\nTudo ótimo por aqui!"
+                      },
+                      "finish_reason": "stop"
+                    }
+                  ]
+                }
+                """;
+
+        String textoExtraido = GroqServicoIa.extrairTextoJson(jsonGroq);
+        assertEquals("Olá! Sou a IA rodando via Groq.\nTudo ótimo por aqui!", textoExtraido);
+    }
+
+    @Test
+    void deveSelecionarGroqOuGeminiAutomaticamentePeloFormatoDaChave() {
+        ServicoIa servicoGroq = BotIaCliente.criarServicoPorChave("gsk_chave_teste_groq_123");
+        assertInstanceOf(GroqServicoIa.class, servicoGroq);
+        assertTrue(servicoGroq.isReal());
+
+        ServicoIa servicoGemini = BotIaCliente.criarServicoPorChave("AIzaSyChaveTesteGemini123");
+        assertInstanceOf(GeminiServicoIa.class, servicoGemini);
+        assertTrue(servicoGemini.isReal());
+    }
 }
 
