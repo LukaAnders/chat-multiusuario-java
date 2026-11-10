@@ -120,16 +120,54 @@ olá pessoal!
 | `Connection refused` no cliente | servidor não iniciado | execute o Passo 2 antes |
 | Acentos estranhos | console fora de UTF-8 | use `scripts\cliente.ps1`, que configura UTF-8 |
 
-### Execução manual (sem scripts)
+### Execução direta sem scripts (Java 21+ no PATH / Maven / IDE)
 
+Caso o computador já possua **Java 21+** e **Maven** configurados no `PATH` (como no PC da professora ou laboratório), não é necessário utilizar os scripts `.ps1`. Você pode executar diretamente pelos comandos abaixo ou pela IDE:
+
+#### Opção 1 — Pelo Terminal (PowerShell ou CMD) com `java` e `mvn`
+
+**1. Compilar o projeto (apenas uma vez):**
 ```powershell
-$env:JAVA_HOME = "C:\caminho\para\jdk-21-ou-superior"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-mvn compile
-$cp = "target/classes;$env:USERPROFILE\.m2\repository\com\h2database\h2\2.2.224\h2-2.2.224.jar"
-java -cp $cp br.com.luka.chat.server.Servidor          # servidor
-java -cp target/classes br.com.luka.chat.client.ClienteChat   # cliente
+mvn clean compile
 ```
+
+**2. Iniciar o Servidor (Terminal 1):**
+- No **PowerShell**:
+  ```powershell
+  java -cp "target/classes;$env:USERPROFILE\.m2\repository\com\h2database\h2\2.2.224\h2-2.2.224.jar" br.com.luka.chat.server.Servidor
+  ```
+- No **Prompt de Comando (CMD)**:
+  ```cmd
+  java -cp "target/classes;%USERPROFILE%\.m2\repository\com\h2database\h2\2.2.224\h2-2.2.224.jar" br.com.luka.chat.server.Servidor
+  ```
+
+**3. Abrir os Clientes com Interface Gráfica Estilo WhatsApp (abra um terminal para cada usuário):**
+```powershell
+java -cp target/classes br.com.luka.chat.client.ClienteChatGui
+```
+*(Dica: o cliente gráfico usa apenas bibliotecas nativas do Java 21 e o código compilado em `target/classes`, portanto o comando acima funciona tanto no PowerShell quanto no CMD ou Linux/macOS).*
+
+**4. Abrir Cliente via Console/Terminal (opcional):**
+```powershell
+java -cp target/classes br.com.luka.chat.client.ClienteChat
+```
+
+**5. Executar a suíte de testes automatizados (JUnit 5):**
+```powershell
+mvn test
+```
+
+#### Opção 2 — Direto pela IDE (IntelliJ IDEA, VS Code ou Eclipse)
+1. Abra a pasta do projeto na IDE como um projeto **Maven**.
+2. Execute (`Run`) o método `main` da classe [`br.com.luka.chat.server.Servidor`](src/main/java/br/com/luka/chat/server/Servidor.java).
+3. Execute (`Run`) o método `main` da classe [`br.com.luka.chat.client.ClienteChatGui`](src/main/java/br/com/luka/chat/client/ClienteChatGui.java) (repita para abrir 2 ou 3 janelas de usuários simultâneos).
+
+> [!NOTE]
+> Caso o comando `java -version` no computador mostre o Java 8 mas haja um JDK 21+ instalado em outra pasta, basta apontar o `JAVA_HOME` na sessão antes dos comandos:
+> ```powershell
+> $env:JAVA_HOME = "C:\caminho\para\jdk-21-ou-superior"
+> $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+> ```
 
 ---
 
@@ -268,33 +306,33 @@ recebem o aviso `* nome entrou no chat`.
 
 ---
 
-## 🤖 Bot com IA e Configuração de API Key
+## 🤖 Assistente de IA Integrado (Groq / Gemini) e Configuração de API Key
 
-O projeto inclui um **cliente autônomo com IA** (`br.com.luka.chat.bot.BotIaCliente`) que participa das conversas como um usuário normal chamado `@Gemini`.
+O projeto inclui um **cliente autônomo com IA** (`br.com.luka.chat.bot.BotIaCliente`) que participa das conversas como `@Gemini` (**Assistente IA ✨**), já fixado no topo da barra lateral de conversas na interface gráfica e iniciado automaticamente em segundo plano.
 
-### Como falar com o Bot no Chat:
-Basta qualquer cliente (seja na interface gráfica ou terminal) enviar uma mensagem contendo:
-- `@gemini o que é uma race condition em Java?`
-- `@ia me explique o padrão Repository`
-- `/ia qual é a função do ServerSocket?`
+### Como falar com a IA no Chat:
+- **Conversa padrão na Barra Lateral:** Clique em **Assistente IA ✨** no topo da lista de conversas e envie qualquer pergunta diretamente.
+- **Em Grupos ou no Console:** Mencione `@gemini`, `@ia` ou envie `/ia <sua pergunta>`.
 
-### Como ativar a IA Real (Google Gemini):
-Por padrão, se nenhuma chave for fornecida, o bot executa em **Modo Demonstração (Fallback)** com respostas simuladas, garantindo que o avaliador/professor consiga testar o projeto de primeira sem criar contas de terceiros.
+### Como ativar a IA Real (Groq ou Gemini) no PC da Professora:
+Por padrão, se nenhuma chave for fornecida, o assistente executa em **Modo Demonstração (Fallback)** com respostas simuladas, garantindo que o projeto funcione imediatamente mesmo sem chave ou internet.
 
-Para ativar a **IA Real com respostas inteligentes do Gemini**:
-1. Obtenha uma chave gratuita no [Google AI Studio](https://aistudio.google.com/).
-2. Defina a chave de uma das duas formas:
+Para ativar a **IA Real com sua chave da Groq (`gsk_...`)**:
 
-**Forma 1 (Variável de Ambiente - Recomendada para a sessão):**
-```powershell
-$env:GEMINI_API_KEY = "sua_chave_aqui"
-.\scripts\bot-ia.ps1
+**Forma 1 — Direto pela Interface Gráfica (Mais Rápida para Apresentação):**
+1. Na conversa **Assistente IA ✨**, clique no botão roxo **`🔑 Configurar Key IA`** no canto superior direito.
+2. Cole sua chave da Groq (`gsk_...`) e clique em **Salvar API Key**.
+3. A chave é salva localmente em `chat.local.properties` (ignorado pelo `.gitignore`) e ativada imediatamente sem precisar reiniciar o servidor.
+
+**Forma 2 — Arquivo de Configuração Local (`chat.local.properties`):**
+Copie o modelo `chat.properties.example` para `chat.local.properties` na raiz do projeto:
+```properties
+groq.api.key=gsk_sua_chave_aqui
 ```
 
-**Forma 2 (Arquivo de Configuração Local):**
-Copie o modelo `chat.properties.example` para `chat.local.properties` (já incluso no `.gitignore` para nunca vazar chaves no Git):
-```properties
-gemini.api.key=sua_chave_aqui
+**Forma 3 — Variável de Ambiente:**
+```powershell
+$env:GROQ_API_KEY = "gsk_sua_chave_aqui"
 ```
 
 ### Arquitetura e Concorrência do Bot:
