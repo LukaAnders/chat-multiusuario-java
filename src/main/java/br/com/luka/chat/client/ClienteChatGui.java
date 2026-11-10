@@ -4,12 +4,14 @@ import br.com.luka.chat.bot.BotIaCliente;
 import br.com.luka.chat.server.Protocolo;
 import br.com.luka.chat.service.ChatService;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.basic.BasicScrollBarUI;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
@@ -23,6 +25,10 @@ import java.awt.event.WindowEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +37,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -174,6 +181,26 @@ public class ClienteChatGui extends JFrame {
         MENSAGEM, SISTEMA, ERRO
     }
 
+    public enum EstiloPapelParede {
+        DOODLES_WHATSAPP("✨ Doodles WhatsApp (Padrão)"),
+        GEOMETRICO("🔷 Mosaico Geométrico"),
+        GRADIENTE_SUAVE("🌈 Gradiente Suave"),
+        PONTILHADO("⚪ Pontilhado Minimalista"),
+        LISO("🎨 Cor Sólida (Sem Estampa)"),
+        IMAGEM_PERSONALIZADA("🖼️ Imagem do Computador");
+
+        private final String titulo;
+
+        EstiloPapelParede(String titulo) {
+            this.titulo = titulo;
+        }
+
+        @Override
+        public String toString() {
+            return titulo;
+        }
+    }
+
     private record ItemMensagem(
             TipoItemChat tipo,
             String remetente,
@@ -243,6 +270,7 @@ public class ClienteChatGui extends JFrame {
     private final JButton botaoSairGrupo;
     private final JButton botaoApagarGrupo;
     private final JButton botaoConfigurarKeyIa;
+    private final JButton botaoPapelParede;
     private final AvatarComponente avatarMeuPerfil;
     private final AvatarComponente avatarConversaAtiva;
     private final JLabel labelNomeMeuPerfil;
@@ -273,6 +301,9 @@ public class ClienteChatGui extends JFrame {
     private final Set<String> usuariosOnline = new HashSet<>();
 
     private Tema temaAtual = Tema.CLARO;
+    private EstiloPapelParede estiloPapelParedeAtual = EstiloPapelParede.DOODLES_WHATSAPP;
+    private BufferedImage imagemPapelParedePersonalizada = null;
+    private String caminhoImagemPapelParede = "";
     private ConexaoRedeCliente conexao;
     private String nickname;
     private String hostConectado = "localhost";
@@ -332,6 +363,16 @@ public class ClienteChatGui extends JFrame {
         JPanel direitaPerfil = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 4));
         direitaPerfil.setOpaque(false);
 
+        botaoPapelParede = new JButton("🖼️");
+        botaoPapelParede.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+        botaoPapelParede.setToolTipText("Alterar Papel de Parede das Conversas");
+        botaoPapelParede.setFocusPainted(false);
+        botaoPapelParede.setBorderPainted(false);
+        botaoPapelParede.setContentAreaFilled(false);
+        botaoPapelParede.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        botaoPapelParede.setBorder(new EmptyBorder(2, 4, 2, 4));
+        botaoPapelParede.addActionListener(e -> dialogEscolherPapelParede());
+
         labelTema = new JLabel("🎨");
         labelTema.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
         labelTema.setToolTipText("Alternar Tema Visual");
@@ -348,6 +389,7 @@ public class ClienteChatGui extends JFrame {
             }
         });
 
+        direitaPerfil.add(botaoPapelParede);
         direitaPerfil.add(labelTema);
         direitaPerfil.add(comboTemas);
 
@@ -598,6 +640,12 @@ public class ClienteChatGui extends JFrame {
                 painelMensagens.repaint();
             }
         });
+        scrollChat.getViewport().addChangeListener(e -> {
+            if (estiloPapelParedeAtual == EstiloPapelParede.IMAGEM_PERSONALIZADA
+                    || estiloPapelParedeAtual == EstiloPapelParede.GRADIENTE_SUAVE) {
+                painelMensagens.repaint();
+            }
+        });
 
         // Campo de Envio Fixo na Parte Inferior
         painelInferior = new JPanel(new BorderLayout(10, 0));
@@ -725,6 +773,7 @@ public class ClienteChatGui extends JFrame {
         usuariosConhecidos.add(BotIaCliente.NICKNAME_PADRAO.toLowerCase(Locale.ROOT));
         usuariosOnline.add(BotIaCliente.NICKNAME_PADRAO.toLowerCase(Locale.ROOT));
 
+        carregarPapelParedeSalvo();
         atualizarModeloSidebar();
         aplicarTema(temaAtual);
     }
@@ -875,12 +924,190 @@ public class ClienteChatGui extends JFrame {
         itemNovoGrupo.setBorder(new EmptyBorder(8, 14, 8, 14));
         itemNovoGrupo.addActionListener(e -> dialogCriarGrupoModerno());
 
+        JMenuItem itemPapelParede = new JMenuItem("🖼️  Alterar Papel de Parede...");
+        itemPapelParede.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        itemPapelParede.setBackground(temaAtual.fundoSidebar);
+        itemPapelParede.setForeground(temaAtual.textoBranco);
+        itemPapelParede.setBorder(new EmptyBorder(8, 14, 8, 14));
+        itemPapelParede.addActionListener(e -> dialogEscolherPapelParede());
+
         menu.add(itemConversaIa);
         menu.add(itemKeyIa);
         menu.addSeparator();
         menu.add(itemNovaPrivada);
         menu.add(itemNovoGrupo);
+        menu.addSeparator();
+        menu.add(itemPapelParede);
         menu.show(botaoNovaConversa, 0, botaoNovaConversa.getHeight() + 4);
+    }
+
+    /**
+     * Modal para escolher o Papel de Parede das conversas (Estampas prontas ou Imagem do computador).
+     */
+    private void dialogEscolherPapelParede() {
+        JDialog dialogo = new JDialog(this, "Papel de Parede da Conversa", true);
+        dialogo.setSize(430, 390);
+        dialogo.setLocationRelativeTo(this);
+        dialogo.setLayout(new BorderLayout());
+        dialogo.getContentPane().setBackground(temaAtual.fundoSidebar);
+
+        JPanel conteudo = new JPanel(new BorderLayout(0, 12));
+        conteudo.setOpaque(false);
+        conteudo.setBorder(new EmptyBorder(18, 22, 18, 22));
+
+        JPanel topoModal = new JPanel(new GridLayout(2, 1, 0, 2));
+        topoModal.setOpaque(false);
+
+        JLabel titulo = new JLabel("🖼️ Papel de Parede das Conversas");
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titulo.setForeground(temaAtual.textoBranco);
+
+        JLabel sub = new JLabel("Escolha um estilo padrão ou selecione uma imagem do seu PC:");
+        sub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        sub.setForeground(temaAtual.textoSecundario);
+
+        topoModal.add(titulo);
+        topoModal.add(sub);
+
+        JPanel painelOpcoes = new JPanel(new GridLayout(0, 1, 0, 6));
+        painelOpcoes.setOpaque(false);
+
+        ButtonGroup grupoOpcoes = new ButtonGroup();
+        Map<EstiloPapelParede, JRadioButton> botoesRadio = new HashMap<>();
+
+        for (EstiloPapelParede estilo : EstiloPapelParede.values()) {
+            JRadioButton rb = new JRadioButton(estilo.toString());
+            rb.setOpaque(true);
+            rb.setBackground(temaAtual.fundoJanela);
+            rb.setForeground(temaAtual.textoBranco);
+            rb.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+            rb.setFocusPainted(false);
+            rb.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            rb.setBorder(BorderFactory.createCompoundBorder(
+                    new LineBorder(temaAtual.corBorda, 1, true),
+                    new EmptyBorder(7, 12, 7, 12)
+            ));
+            rb.setSelected(estilo == estiloPapelParedeAtual);
+            rb.addActionListener(e -> {
+                if (estilo == EstiloPapelParede.IMAGEM_PERSONALIZADA && imagemPapelParedePersonalizada == null) {
+                    selecionarArquivoImagemPapelParede(dialogo, botoesRadio);
+                } else {
+                    estiloPapelParedeAtual = estilo;
+                    salvarPapelParedeLocal();
+                    painelMensagens.repaint();
+                }
+            });
+            grupoOpcoes.add(rb);
+            botoesRadio.put(estilo, rb);
+            painelOpcoes.add(rb);
+        }
+
+        JButton btnEscolherImagemPc = criarBotaoCompacto("📂 Escolher Imagem do Computador (.png, .jpg)...", false, false);
+        btnEscolherImagemPc.setBackground(temaAtual.fundoEntrada);
+        btnEscolherImagemPc.setForeground(temaAtual.textoBranco);
+        btnEscolherImagemPc.addActionListener(e -> selecionarArquivoImagemPapelParede(dialogo, botoesRadio));
+
+        JPanel centro = new JPanel(new BorderLayout(0, 10));
+        centro.setOpaque(false);
+        centro.add(painelOpcoes, BorderLayout.CENTER);
+        centro.add(btnEscolherImagemPc, BorderLayout.SOUTH);
+
+        JPanel rodape = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        rodape.setOpaque(false);
+
+        JButton btnFechar = criarBotaoCompacto("Concluído", true, false);
+        btnFechar.setBackground(temaAtual.botaoPrimario);
+        btnFechar.setForeground(Color.WHITE);
+        btnFechar.addActionListener(e -> dialogo.dispose());
+        rodape.add(btnFechar);
+
+        conteudo.add(topoModal, BorderLayout.NORTH);
+        conteudo.add(centro, BorderLayout.CENTER);
+        conteudo.add(rodape, BorderLayout.SOUTH);
+
+        dialogo.add(conteudo);
+        dialogo.setVisible(true);
+    }
+
+    private void selecionarArquivoImagemPapelParede(Component pai, Map<EstiloPapelParede, JRadioButton> botoesRadio) {
+        JFileChooser seletor = new JFileChooser();
+        seletor.setDialogTitle("Escolher Imagem de Papel de Parede");
+        seletor.setFileFilter(new FileNameExtensionFilter("Imagens (PNG, JPG, JPEG)", "png", "jpg", "jpeg"));
+        if (seletor.showOpenDialog(pai) == JFileChooser.APPROVE_OPTION) {
+            File arquivo = seletor.getSelectedFile();
+            try {
+                BufferedImage img = ImageIO.read(arquivo);
+                if (img != null) {
+                    imagemPapelParedePersonalizada = img;
+                    caminhoImagemPapelParede = arquivo.getAbsolutePath();
+                    estiloPapelParedeAtual = EstiloPapelParede.IMAGEM_PERSONALIZADA;
+                    JRadioButton rbImg = botoesRadio.get(EstiloPapelParede.IMAGEM_PERSONALIZADA);
+                    if (rbImg != null) {
+                        rbImg.setSelected(true);
+                    }
+                    salvarPapelParedeLocal();
+                    painelMensagens.repaint();
+                } else {
+                    JOptionPane.showMessageDialog(pai, "O arquivo selecionado não é uma imagem válida.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                }
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(pai, "Erro ao carregar imagem: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        } else if (imagemPapelParedePersonalizada == null) {
+            JRadioButton rbAtual = botoesRadio.get(estiloPapelParedeAtual);
+            if (rbAtual != null) {
+                rbAtual.setSelected(true);
+            }
+        }
+    }
+
+    private void carregarPapelParedeSalvo() {
+        File arq = new File("chat.local.properties");
+        if (!arq.exists()) {
+            return;
+        }
+        Properties props = new Properties();
+        try (FileInputStream fis = new FileInputStream(arq)) {
+            props.load(fis);
+            String caminho = props.getProperty("chat.wallpaper.imagem", "").trim();
+            if (!caminho.isEmpty()) {
+                File imgFile = new File(caminho);
+                if (imgFile.isFile()) {
+                    BufferedImage img = ImageIO.read(imgFile);
+                    if (img != null) {
+                        imagemPapelParedePersonalizada = img;
+                        caminhoImagemPapelParede = caminho;
+                    }
+                }
+            }
+            String nomeEstilo = props.getProperty("chat.wallpaper.estilo", "").trim();
+            if (!nomeEstilo.isEmpty()) {
+                EstiloPapelParede salvo = EstiloPapelParede.valueOf(nomeEstilo);
+                if (salvo != EstiloPapelParede.IMAGEM_PERSONALIZADA || imagemPapelParedePersonalizada != null) {
+                    estiloPapelParedeAtual = salvo;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void salvarPapelParedeLocal() {
+        File arq = new File("chat.local.properties");
+        Properties props = new Properties();
+        if (arq.exists()) {
+            try (FileInputStream fis = new FileInputStream(arq)) {
+                props.load(fis);
+            } catch (IOException ignored) {
+            }
+        }
+        props.setProperty("chat.wallpaper.estilo", estiloPapelParedeAtual.name());
+        if (caminhoImagemPapelParede != null && !caminhoImagemPapelParede.isBlank()) {
+            props.setProperty("chat.wallpaper.imagem", caminhoImagemPapelParede);
+        }
+        try (FileOutputStream fos = new FileOutputStream(arq)) {
+            props.store(fos, "Configuracoes locais do Chat Multiusuario (nao versionado no Git)");
+        } catch (IOException ignored) {
+        }
     }
 
     /**
@@ -2559,20 +2786,153 @@ public class ClienteChatGui extends JFrame {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
-            g2.setColor(temaAtual.fundoChat);
-            g2.fillRect(0, 0, getWidth(), getHeight());
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
-            // Padrao pontilhado ultra discreto inspirado no fundo de conversa do WhatsApp
-            g2.setColor(temaAtual == Tema.ESCURO || temaAtual == Tema.DRACULA
-                    ? new Color(255, 255, 255, 6)
-                    : new Color(0, 0, 0, 7));
-            int passo = 28;
-            for (int y = 12; y < getHeight(); y += passo) {
-                for (int x = 12; x < getWidth(); x += passo) {
-                    g2.fillOval(x, y, 2, 2);
+            int w = getWidth();
+            int h = getHeight();
+            boolean modoEscuro = (temaAtual == Tema.ESCURO || temaAtual == Tema.DRACULA);
+
+            // Base de fundo (no estilo Doodles WhatsApp Claro usa o tom bege classico #EFEAE2)
+            Color corBaseFundo = (estiloPapelParedeAtual == EstiloPapelParede.DOODLES_WHATSAPP && temaAtual == Tema.CLARO)
+                    ? new Color(239, 234, 226)
+                    : temaAtual.fundoChat;
+            g2.setColor(corBaseFundo);
+            g2.fillRect(0, 0, w, h);
+
+            Rectangle viewRect = (scrollChat != null && scrollChat.getViewport() != null)
+                    ? scrollChat.getViewport().getViewRect()
+                    : new Rectangle(0, 0, w, h);
+
+            switch (estiloPapelParedeAtual) {
+                case IMAGEM_PERSONALIZADA -> {
+                    if (imagemPapelParedePersonalizada != null) {
+                        int vw = Math.max(1, viewRect.width);
+                        int vh = Math.max(1, viewRect.height);
+                        int iw = imagemPapelParedePersonalizada.getWidth();
+                        int ih = imagemPapelParedePersonalizada.getHeight();
+                        double escala = Math.max((double) vw / iw, (double) vh / ih);
+                        int dw = (int) Math.ceil(iw * escala);
+                        int dh = (int) Math.ceil(ih * escala);
+                        int dx = viewRect.x + (vw - dw) / 2;
+                        int dy = viewRect.y + (vh - dh) / 2;
+
+                        Shape clipAnterior = g2.getClip();
+                        g2.clipRect(viewRect.x, viewRect.y, vw, vh);
+                        g2.drawImage(imagemPapelParedePersonalizada, dx, dy, dw, dh, null);
+
+                        // Veu suave para garantir 100% de legibilidade nos baloes de conversa
+                        Color veu = modoEscuro
+                                ? new Color(11, 20, 26, 115)
+                                : new Color(245, 246, 248, 85);
+                        g2.setColor(veu);
+                        g2.fillRect(viewRect.x, viewRect.y, vw, vh);
+                        g2.setClip(clipAnterior);
+                    }
+                }
+                case GRADIENTE_SUAVE -> {
+                    Color c1 = modoEscuro
+                            ? temaAtual.fundoChat.brighter()
+                            : new Color(224, 242, 233);
+                    Color c2 = modoEscuro
+                            ? temaAtual.fundoChat
+                            : new Color(239, 234, 226);
+                    GradientPaint gp = new GradientPaint(
+                            viewRect.x, viewRect.y, c1,
+                            viewRect.x + viewRect.width, viewRect.y + viewRect.height, c2
+                    );
+                    g2.setPaint(gp);
+                    g2.fillRect(viewRect.x, viewRect.y, viewRect.width, viewRect.height);
+                }
+                case GEOMETRICO -> {
+                    g2.setColor(modoEscuro ? new Color(255, 255, 255, 9) : new Color(0, 0, 0, 11));
+                    g2.setStroke(new BasicStroke(1.1f));
+                    int tam = 48;
+                    for (int y = 0; y < h + tam; y += tam) {
+                        for (int x = 0; x < w + tam; x += tam) {
+                            Polygon losango = new Polygon(
+                                    new int[]{x, x + tam / 2, x, x - tam / 2},
+                                    new int[]{y - tam / 2, y, y + tam / 2, y},
+                                    4
+                            );
+                            g2.drawPolygon(losango);
+                            g2.fillOval(x - 2, y - 2, 4, 4);
+                        }
+                    }
+                }
+                case PONTILHADO -> {
+                    g2.setColor(modoEscuro ? new Color(255, 255, 255, 11) : new Color(0, 0, 0, 14));
+                    int passo = 26;
+                    for (int y = 12; y < h; y += passo) {
+                        for (int x = 12; x < w; x += passo) {
+                            g2.fillOval(x, y, 3, 3);
+                        }
+                    }
+                }
+                case DOODLES_WHATSAPP -> {
+                    desenharPadraoDoodlesWhatsApp(g2, w, h, modoEscuro);
+                }
+                case LISO -> {
+                    // Apenas cor solida ja preenchida
                 }
             }
             g2.dispose();
+        }
+
+        private void desenharPadraoDoodlesWhatsApp(Graphics2D g2, int largura, int altura, boolean modoEscuro) {
+            g2.setColor(modoEscuro ? new Color(255, 255, 255, 10) : new Color(134, 150, 160, 26));
+            g2.setStroke(new BasicStroke(1.35f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            int passoX = 92;
+            int passoY = 76;
+            int linha = 0;
+            for (int y = 18; y < altura + passoY; y += passoY) {
+                int deslocamentoX = (linha % 2 == 0) ? 18 : 64;
+                int col = 0;
+                for (int x = deslocamentoX; x < largura + passoX; x += passoX) {
+                    int tipo = Math.abs((linha * 3 + col) % 6);
+                    switch (tipo) {
+                        case 0 -> { // Balao de conversa
+                            g2.drawRoundRect(x, y, 22, 15, 8, 8);
+                            g2.drawLine(x + 5, y + 6, x + 16, y + 6);
+                            g2.drawLine(x + 5, y + 10, x + 12, y + 10);
+                        }
+                        case 1 -> { // Aviao de papel
+                            Polygon aviao = new Polygon(
+                                    new int[]{x, x + 20, x + 9, x + 6},
+                                    new int[]{y + 8, y, y + 16, y + 10},
+                                    4
+                            );
+                            g2.drawPolygon(aviao);
+                        }
+                        case 2 -> { // Estrela / brilho
+                            g2.drawLine(x + 8, y, x + 8, y + 16);
+                            g2.drawLine(x, y + 8, x + 16, y + 8);
+                            g2.drawLine(x + 3, y + 3, x + 13, y + 13);
+                            g2.drawLine(x + 13, y + 3, x + 3, y + 13);
+                        }
+                        case 3 -> { // Carinha sorridente
+                            g2.drawOval(x, y, 18, 18);
+                            g2.fillOval(x + 5, y + 5, 2, 2);
+                            g2.fillOval(x + 11, y + 5, 2, 2);
+                            g2.drawArc(x + 4, y + 6, 10, 8, 200, 140);
+                        }
+                        case 4 -> { // Nota musical
+                            g2.fillOval(x, y + 11, 6, 5);
+                            g2.fillOval(x + 11, y + 9, 6, 5);
+                            g2.drawLine(x + 5, y + 13, x + 5, y + 2);
+                            g2.drawLine(x + 16, y + 11, x + 16, y);
+                            g2.drawLine(x + 5, y + 2, x + 16, y);
+                        }
+                        default -> { // Envelope / mensagem
+                            g2.drawRoundRect(x, y + 2, 20, 14, 4, 4);
+                            g2.drawLine(x + 1, y + 3, x + 10, y + 10);
+                            g2.drawLine(x + 19, y + 3, x + 10, y + 10);
+                        }
+                    }
+                    col++;
+                }
+                linha++;
+            }
         }
 
         @Override
