@@ -845,14 +845,14 @@ public class ClienteChatGui extends JFrame {
         menu.setBackground(temaAtual.fundoSidebar);
         menu.setBorder(new LineBorder(temaAtual.corBorda, 1, true));
 
-        JMenuItem itemConversaIa = new JMenuItem("✨  Abrir conversa com Gemini IA");
+        JMenuItem itemConversaIa = new JMenuItem("✨  Abrir conversa com Assistente IA");
         itemConversaIa.setFont(new Font("Segoe UI", Font.BOLD, 13));
         itemConversaIa.setBackground(temaAtual.fundoSidebar);
         itemConversaIa.setForeground(COR_IA_DESTAQUE);
         itemConversaIa.setBorder(new EmptyBorder(8, 14, 8, 14));
         itemConversaIa.addActionListener(e -> selecionarConversa(CONVERSA_IA_PADRAO));
 
-        JMenuItem itemKeyIa = new JMenuItem("🔑  Configurar API Key do Gemini...");
+        JMenuItem itemKeyIa = new JMenuItem("🔑  Configurar API Key da IA (Groq)...");
         itemKeyIa.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         itemKeyIa.setBackground(temaAtual.fundoSidebar);
         itemKeyIa.setForeground(temaAtual.textoBranco);
@@ -882,10 +882,10 @@ public class ClienteChatGui extends JFrame {
     }
 
     /**
-     * Modal para o usuario colar e salvar sua API Key do Google Gemini em chat.local.properties.
+     * Modal para o usuario colar e salvar sua API Key da Groq (ou Gemini) em chat.local.properties.
      */
     private void dialogConfigurarChaveIa() {
-        JDialog dialogo = new JDialog(this, "Configurar API Key — Gemini IA", true);
+        JDialog dialogo = new JDialog(this, "Configurar API Key — Assistente IA (Groq)", true);
         dialogo.setSize(430, 265);
         dialogo.setLocationRelativeTo(this);
         dialogo.setLayout(new BorderLayout());
@@ -895,7 +895,7 @@ public class ClienteChatGui extends JFrame {
         conteudo.setOpaque(false);
         conteudo.setBorder(new EmptyBorder(18, 22, 18, 22));
 
-        JLabel titulo = new JLabel("✨ Configurar Google Gemini IA");
+        JLabel titulo = new JLabel("✨ Configurar API Key da IA (Groq)");
         titulo.setFont(new Font("Segoe UI", Font.BOLD, 16));
         titulo.setForeground(temaAtual.textoBranco);
 
@@ -904,7 +904,7 @@ public class ClienteChatGui extends JFrame {
                 ? "Status atual: Chave configurada e ativa ✅"
                 : "Status atual: Sem chave (Modo Simulação/Demonstração)";
 
-        JLabel sub = new JLabel("<html>Cole sua <b>GEMINI_API_KEY</b> abaixo.<br>"
+        JLabel sub = new JLabel("<html>Cole sua <b>API Key da Groq</b> (ex: <code>gsk_...</code>) abaixo.<br>"
                 + "<span style='font-size:10px;'>" + statusKey + " • Salva localmente em chat.local.properties (fora do Git).</span></html>");
         sub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         sub.setForeground(temaAtual.textoSecundario);
@@ -1535,11 +1535,11 @@ public class ClienteChatGui extends JFrame {
             labelSubtituloConversa.setForeground(temaAtual.textoSecundario);
             avatarConversaAtiva.atualizar(conversaAtiva, true, false);
         } else if (ehIa) {
-            labelConversaAtiva.setText("Gemini IA ✨");
+            labelConversaAtiva.setText("Assistente IA ✨");
             boolean temKey = BotIaCliente.possuiChaveConfigurada();
-            botaoConfigurarKeyIa.setText(temKey ? "🔑 Key IA Ativa" : "🔑 Configurar Key IA");
+            botaoConfigurarKeyIa.setText(temKey ? "🔑 Key Groq Ativa" : "🔑 Configurar Key IA");
             if (temKey) {
-                labelSubtituloConversa.setText("● online • Google Gemini IA ativa");
+                labelSubtituloConversa.setText("● online • Groq IA ativa (Llama 3.3)");
                 labelSubtituloConversa.setForeground(temaAtual == Tema.CLARO ? new Color(0, 128, 105) : COR_STATUS_ONLINE);
             } else {
                 labelSubtituloConversa.setText("● online • Modo demonstração (clique em '🔑 Configurar Key IA')");
@@ -2217,7 +2217,7 @@ public class ClienteChatGui extends JFrame {
             return identificador;
         }
         if (limpo.equalsIgnoreCase(BotIaCliente.NICKNAME_PADRAO)) {
-            return "Gemini IA ✨";
+            return "Assistente IA ✨";
         }
         String[] partes = limpo.split("[-_\\s]+");
         StringBuilder sb = new StringBuilder();
@@ -2392,8 +2392,8 @@ public class ClienteChatGui extends JFrame {
 
             if (CONVERSA_IA_PADRAO.equalsIgnoreCase(chaveConversa) && itens.isEmpty()) {
                 String msgIa = BotIaCliente.possuiChaveConfigurada()
-                        ? "✨ Assistente Gemini IA pronto! Envie qualquer pergunta abaixo."
-                        : "✨ Assistente Gemini IA — Clique em '🔑 Configurar Key IA' no topo para ativar sua API Key.";
+                        ? "✨ Assistente IA (Groq) pronto! Envie qualquer pergunta abaixo."
+                        : "✨ Assistente IA — Clique em '🔑 Configurar Key IA' no topo para colar sua key da Groq.";
                 containerLinhas.add(criarPilulaCentral(msgIa, false));
                 containerLinhas.add(Box.createVerticalStrut(8));
             }
