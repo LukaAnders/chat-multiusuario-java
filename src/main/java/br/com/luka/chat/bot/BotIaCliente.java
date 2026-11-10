@@ -4,12 +4,16 @@ import br.com.luka.chat.client.ConexaoRedeCliente;
 import br.com.luka.chat.service.ChatService;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Cliente autônomo de IA que conecta ao chat e responde às perguntas
@@ -23,10 +27,17 @@ public class BotIaCliente {
     private static final String GATILHO_MACAO = "@gemini";
     private static final String GATILHO_IA = "@ia";
     private static final String GATILHO_COMANDO = "/ia";
+    private static final int LIMITE_BLOCO_PROTOCOLO = 450;
+    private static final Path ARQUIVO_CONFIG_LOCAL = Path.of("chat.local.properties");
+    private static final AtomicBoolean BOT_EM_BACKGROUND_INICIADO = new AtomicBoolean(false);
 
     private final ConexaoRedeCliente conexao;
-    private final ServicoIa servicoIa;
-    private final ExecutorService poolProcessamento = Executors.newCachedThreadPool();
+    private volatile ServicoIa servicoIa;
+    private final ExecutorService poolProcessamento = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "bot-ia-worker");
+        t.setDaemon(true);
+        return t;
+    });
 
     public BotIaCliente(String host, int porta, ServicoIa servicoIa) {
         this.servicoIa = servicoIa;
@@ -48,6 +59,26 @@ public class BotIaCliente {
 
         conexao.conectar(nickname);
         System.out.println("Bot conectado com sucesso ao chat!");
+    }
+
+    /**
+     * Inicia uma instancia daemon do Bot IA em segundo plano caso ainda nao esteja ativa nesta JVM.
+     * Se outro processo ja tiver registrado o nickname 'Gemini' no servidor, o servidor ignora a duplicata.
+     */
+    public static void garantirBotAtivoEmBackground(String host, int porta) {
+        if (!BOT_EM_BACKGROUND_INICIADO.compareAndSet(false, true)) {
+            return;
+        }
+        Thread threadBot = new Thread(() -> {
+            try {
+                BotIaCliente bot = new BotIaCliente(host, porta, resolverServicoIa());
+                bot.conexao.conectar(NICKNAME_PADRAO);
+            } catch (IOException ignored) {
+                BOT_EM_BACKGROUND_INICIADO.set(false);
+            }
+        }, "bot-ia-background");
+        threadBot.setDaemon(true);
+        threadBot.start();
     }
 
     private void processarMensagemRecebida(String linha) {
@@ -100,12 +131,50 @@ public class BotIaCliente {
         final String perguntaFinal = perguntaLimpa.isBlank() ? "olá" : perguntaLimpa;
         poolProcessamento.submit(() -> {
             try {
-                String resposta = servicoIa.responder(remetente, perguntaFinal);
-                conexao.enviar(prefixoComando + resposta);
+                // Atualiza dinamicamente caso o usuario tenha acabado de salvar a API Key
+                ServicoIa servicoAtual = resolverServicoIa();
+                if (servicoAtual.isReal() || this.servicoIa == null) {
+                    this.servicoIa = servicoAtual;
+                }
+                String resposta = this.servicoIa.responder(remetente, perguntaFinal);
+                for (String bloco : dividirRespostaParaProtocolo(resposta)) {
+                    conexao.enviar(prefixoComando + bloco);
+                }
             } catch (Exception e) {
                 conexao.enviar(prefixoComando + "Desculpe, tive um problema ao processar sua pergunta.");
             }
         });
+    }
+
+    /**
+     * Divide respostas multilinhas ou longas em blocos seguros para o protocolo TCP (orientado a linhas
+     * e com limite de 500 caracteres por Mensagem).
+     */
+    public static List<String> dividirRespostaParaProtocolo(String resposta) {
+        List<String> blocos = new ArrayList<>();
+        if (resposta == null || resposta.isBlank()) {
+            return blocos;
+        }
+
+        String[] linhas = resposta.replace("\r", "").split("\n+");
+        for (String linha : linhas) {
+            String limpa = linha.trim();
+            if (limpa.isEmpty()) {
+                continue;
+            }
+            while (limpa.length() > LIMITE_BLOCO_PROTOCOLO) {
+                int corte = limpa.lastIndexOf(' ', LIMITE_BLOCO_PROTOCOLO);
+                if (corte <= 0) {
+                    corte = LIMITE_BLOCO_PROTOCOLO;
+                }
+                blocos.add(limpa.substring(0, corte).trim());
+                limpa = limpa.substring(corte).trim();
+            }
+            if (!limpa.isEmpty()) {
+                blocos.add(limpa);
+            }
+        }
+        return blocos;
     }
 
     private boolean contemGatilho(String conteudo) {
@@ -142,25 +211,52 @@ public class BotIaCliente {
                     .trim();
     }
 
-    public static ServicoIa resolverServicoIa() {
-        String chave = System.getenv("GEMINI_API_KEY");
-        if (chave != null && !chave.isBlank()) {
-            return new GeminiServicoIa(chave.trim());
+    public static String lerChaveConfigurada() {
+        String chaveEnv = System.getenv("GEMINI_API_KEY");
+        if (chaveEnv != null && !chaveEnv.isBlank()) {
+            return chaveEnv.trim();
         }
-
-        Path arquivoConfig = Path.of("chat.local.properties");
-        if (Files.exists(arquivoConfig)) {
+        if (Files.exists(ARQUIVO_CONFIG_LOCAL)) {
             Properties props = new Properties();
-            try (FileInputStream fis = new FileInputStream(arquivoConfig.toFile())) {
+            try (FileInputStream fis = new FileInputStream(ARQUIVO_CONFIG_LOCAL.toFile())) {
                 props.load(fis);
                 String chaveProp = props.getProperty("gemini.api.key");
-                if (chaveProp != null && !chaveProp.isBlank()) {
-                    return new GeminiServicoIa(chaveProp.trim());
+                if (chaveProp != null && !chaveProp.isBlank()
+                        && !chaveProp.trim().equalsIgnoreCase("COLE_SUA_CHAVE_AQUI")) {
+                    return chaveProp.trim();
                 }
             } catch (IOException ignored) {
             }
         }
+        return null;
+    }
 
+    public static boolean possuiChaveConfigurada() {
+        return lerChaveConfigurada() != null;
+    }
+
+    /**
+     * Salva a API Key localmente em chat.local.properties (ignorado pelo Git).
+     */
+    public static void salvarChaveLocal(String novaChave) throws IOException {
+        Properties props = new Properties();
+        if (Files.exists(ARQUIVO_CONFIG_LOCAL)) {
+            try (FileInputStream fis = new FileInputStream(ARQUIVO_CONFIG_LOCAL.toFile())) {
+                props.load(fis);
+            } catch (IOException ignored) {
+            }
+        }
+        props.setProperty("gemini.api.key", novaChave != null ? novaChave.trim() : "");
+        try (FileOutputStream fos = new FileOutputStream(ARQUIVO_CONFIG_LOCAL.toFile())) {
+            props.store(fos, "Configuracao local da API Key do Gemini (nao versionado no Git)");
+        }
+    }
+
+    public static ServicoIa resolverServicoIa() {
+        String chave = lerChaveConfigurada();
+        if (chave != null && !chave.isBlank()) {
+            return new GeminiServicoIa(chave);
+        }
         return new SimuladoServicoIa();
     }
 

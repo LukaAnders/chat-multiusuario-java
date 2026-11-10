@@ -6,17 +6,25 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Integracao com a API REST oficial do Google Gemini usando HttpClient nativo do Java 21.
+ * Tenta automaticamente os modelos atuais do Gemini Flash em ordem de prioridade.
  */
 public class GeminiServicoIa implements ServicoIa {
 
-    private static final String URL_BASE =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
+    private static final List<String> MODELOS_GEMINI = List.of(
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash"
+    );
+
+    private static final String URL_PREFIXO =
+            "https://generativelanguage.googleapis.com/v1beta/models/";
 
     private static final Pattern PADRAO_TEXTO_RESPOSTA =
             Pattern.compile("\"text\":\\s*\"(.*?)(?<!\\\\)\"", Pattern.DOTALL);
@@ -33,9 +41,9 @@ public class GeminiServicoIa implements ServicoIa {
 
     @Override
     public String responder(String remetente, String pergunta) {
-        String promptContextualizado = "Você é o assistente virtual do Chat Multiusuário UniCesumar. "
-                + "O usuário @" + remetente + " disse: \"" + pergunta + "\". "
-                + "Responda de forma concisa, educada e direta em português do Brasil (máximo 3 frases, ideal para chat).";
+        String promptContextualizado = "Você é o assistente virtual inteligente (Gemini IA) integrado ao Chat Multiusuário. "
+                + "O usuário @" + remetente + " enviou: \"" + pergunta + "\". "
+                + "Responda de forma prestativa, clara, natural e concisa em português do Brasil (até 400 caracteres, ideal para mensagem de chat).";
 
         String jsonCorpo = "{"
                 + "\"contents\": [{"
@@ -43,25 +51,34 @@ public class GeminiServicoIa implements ServicoIa {
                 + "}]"
                 + "}";
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(URL_BASE + apiKey))
-                .header("Content-Type", "application/json")
-                .timeout(Duration.ofSeconds(15))
-                .POST(HttpRequest.BodyPublishers.ofString(jsonCorpo))
-                .build();
+        int ultimoStatus = 0;
+        for (String modelo : MODELOS_GEMINI) {
+            String url = URL_PREFIXO + modelo + ":generateContent?key=" + apiKey;
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(15))
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonCorpo))
+                    .build();
 
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            try {
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                ultimoStatus = response.statusCode();
 
-            if (response.statusCode() == 200) {
-                return extrairTextoJson(response.body());
-            } else {
-                return "⚠ Erro na API Gemini (HTTP " + response.statusCode() + "): verifique se sua API Key é válida.";
+                if (ultimoStatus == 200) {
+                    return extrairTextoJson(response.body());
+                }
+                // Se for 404 (modelo descontinuado/indisponivel), tenta o proximo modelo da lista
+                if (ultimoStatus != 404) {
+                    break;
+                }
+            } catch (IOException | InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "⚠ Erro de conexão com a API Gemini: " + e.getMessage();
             }
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return "⚠ Erro de conexão com a API Gemini: " + e.getMessage();
         }
+
+        return "⚠ Erro na API Gemini (HTTP " + ultimoStatus + "): verifique se sua API Key é válida.";
     }
 
     @Override
@@ -95,4 +112,3 @@ public class GeminiServicoIa implements ServicoIa {
                     .replace("\\\\", "\\");
     }
 }
-

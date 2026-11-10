@@ -49,15 +49,15 @@ Servidor iniciado na porta 5000
 Abra novos terminais ou janelas gráficas para cada usuário (pelo menos 3 para a
 demonstração). Você pode escolher entre **Interface Gráfica (Janela)** ou **Terminal**:
 
-#### Opção A — Interface Gráfica Estilo WhatsApp (Recomendada):
+#### Opção A — Interface Gráfica Estilo WhatsApp Desktop (Recomendada):
 ```powershell
 .\scripts\cliente-gui.ps1
 ```
-> Abre uma janela desktop moderna com:
-> - **Barra lateral de Conversas & Grupos:** Alterne entre a sala pública (`🌐 #geral`), grupos (`👥 #nome-grupo`) e conversas privadas 1x1 com qualquer usuário conectado (`💬 @usuario`).
-> - **Botão `+ Novo Grupo`:** Crie ou entre em grupos em tempo real.
-> - **Notificações de mensagens não lidas:** Indicador `● (N)` ao lado das conversas com novas mensagens.
-> - **Seletor de Temas:** Escolha entre *Escuro (Discord)*, *Claro*, *Drácula* e *Esmeralda*.
+> Abre uma janela desktop moderna inspirada no WhatsApp Desktop com:
+> - **Barra lateral de Conversas (~30%):** Cabeçalho do perfil conectado com avatar e status online, barra de pesquisa em tempo real, filtros rápidos (*Tudo*, *Não lidas*, *Grupos*), lista de conversas com prévia e horário da última mensagem e indicador circular verde de não lidas.
+> - **Área de Conversa (~70%):** Tela inicial ilustrativa quando nenhuma conversa está selecionada, cabeçalho do contato/grupo com status online/offline, balões arredondados alinhados à esquerda (recebidas em branco) e à direita (enviadas em verde suave `#D9FDD3` com `✓✓`) e barra inferior arredondada com seletor de emojis coloridos Twemoji.
+> - **Botões `+` e `+ Grupo`:** Inicie conversas privadas ou crie/gerencie grupos em tempo real.
+> - **Seletor de Temas:** Escolha entre *WhatsApp Claro* (padrão), *WhatsApp Escuro*, *Drácula* e *Esmeralda*.
 
 #### Opção B — Terminal (Console):
 ```powershell
@@ -383,6 +383,12 @@ Os testes das regras foram escritos antes das respectivas implementações.
   para a arquitetura em camadas (service, persistence, Repository),
   implementou a persistência JDBC, o histórico, o nickname único, os
   testes de concorrência e os scripts de execução.
+- **Gemini (via Antigravity)**: reformulou visualmente a interface gráfica
+  (`ClienteChatGui`) inspirada no WhatsApp Desktop, adicionando cabeçalho
+  de perfil, busca e filtros na barra lateral, prévia e horário da última
+  mensagem, tela inicial sem conversa selecionada e balões de mensagem
+  arredondados alinhados à esquerda e à direita, preservando integralmente
+  o protocolo TCP, a concorrência na EDT e a arquitetura existente.
 
 Validação:
 - teste manual com servidor real e 4 clientes TCP: broadcast entregue a
