@@ -1,6 +1,8 @@
-# Exemplo de configuracao local para ativar a IA Real (Gemini).
-# Para usar, copie este arquivo como 'chat.local.properties' (ignorado pelo Git).
+# Exemplo de configuracao local para ativar a IA Real (Groq ou Gemini).
+# Para usar, copie este arquivo como 'chat.local.properties' (ignorado pelo Git)
+# ou clique no botao '🔑 Configurar Key IA' dentro da interface grafica.
 #
-# Obtenha sua chave gratuita em: https://aistudio.google.com/
-gemini.api.key=SUA_CHAVE_AQUI
+# Chave da Groq (ex: gsk_...): https://console.groq.com/keys
+groq.api.key=SUA_CHAVE_GROQ_AQUI
+
 
