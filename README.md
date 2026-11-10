@@ -53,11 +53,6 @@ demonstração). Você pode escolher entre **Interface Gráfica (Janela)** ou **
 ```powershell
 .\scripts\cliente-gui.ps1
 ```
-> Abre uma janela desktop moderna inspirada no WhatsApp Desktop com:
-> - **Barra lateral de Conversas (~30%):** Cabeçalho do perfil conectado com avatar e status online, barra de pesquisa em tempo real, filtros rápidos (*Tudo*, *Não lidas*, *Grupos*), lista de conversas com prévia e horário da última mensagem e indicador circular verde de não lidas.
-> - **Área de Conversa (~70%):** Tela inicial ilustrativa quando nenhuma conversa está selecionada, cabeçalho do contato/grupo com status online/offline, balões arredondados alinhados à esquerda (recebidas em branco) e à direita (enviadas em verde suave `#D9FDD3` com `✓✓`) e barra inferior arredondada com seletor de emojis coloridos Twemoji.
-> - **Botões `+` e `+ Grupo`:** Inicie conversas privadas ou crie/gerencie grupos em tempo real.
-> - **Seletor de Temas:** Escolha entre *WhatsApp Claro* (padrão), *WhatsApp Escuro*, *Drácula* e *Esmeralda*.
 
 #### Opção B — Terminal (Console):
 ```powershell
@@ -68,11 +63,6 @@ demonstração). Você pode escolher entre **Interface Gráfica (Janela)** ou **
 ```powershell
 .\scripts\bot-ia.ps1
 ```
-
-> Conecta um participante autônomo chamado **@Gemini** ao chat. Ele escuta as mensagens e responde a qualquer usuário que mencione `@gemini`, `@ia` ou use `/ia <pergunta>`.
-> - **Sem configuração (padrão):** Funciona imediatamente no modo demonstração/offline (ideal para correção da professora).
-> - **Com IA Real (Gemini):** Veja a seção [Configurando a IA Real](#-bot-com-ia-e-configuração-de-api-key).
-
 
 
 
