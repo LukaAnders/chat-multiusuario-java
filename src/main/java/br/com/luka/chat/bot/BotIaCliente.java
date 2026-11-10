@@ -61,19 +61,26 @@ public class BotIaCliente {
         System.out.println("Bot conectado com sucesso ao chat!");
     }
 
+    private static BotIaCliente instanciaBackground;
+
     /**
      * Inicia uma instancia daemon do Bot IA em segundo plano caso ainda nao esteja ativa nesta JVM.
-     * Se outro processo ja tiver registrado o nickname 'Gemini' no servidor, o servidor ignora a duplicata.
+     * Se outro processo ja tiver registrado o nickname 'Gemini' no servidor, fecha a conexao extra.
      */
-    public static void garantirBotAtivoEmBackground(String host, int porta) {
+    public static synchronized void garantirBotAtivoEmBackground(String host, int porta) {
+        if (instanciaBackground != null && instanciaBackground.conexao.isConectado()) {
+            return;
+        }
         if (!BOT_EM_BACKGROUND_INICIADO.compareAndSet(false, true)) {
             return;
         }
         Thread threadBot = new Thread(() -> {
             try {
                 BotIaCliente bot = new BotIaCliente(host, porta, resolverServicoIa());
+                instanciaBackground = bot;
                 bot.conexao.conectar(NICKNAME_PADRAO);
             } catch (IOException ignored) {
+                instanciaBackground = null;
                 BOT_EM_BACKGROUND_INICIADO.set(false);
             }
         }, "bot-ia-background");
@@ -82,6 +89,11 @@ public class BotIaCliente {
     }
 
     private void processarMensagemRecebida(String linha) {
+        if (linha.startsWith("! Nome em uso")) {
+            conexao.desconectar();
+            BOT_EM_BACKGROUND_INICIADO.set(false);
+            return;
+        }
         if (linha.startsWith("*") || linha.startsWith("!") || linha.startsWith(ChatService.PREFIXO_CONTATOS)) {
             return;
         }

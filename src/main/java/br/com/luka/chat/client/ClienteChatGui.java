@@ -275,6 +275,8 @@ public class ClienteChatGui extends JFrame {
     private Tema temaAtual = Tema.CLARO;
     private ConexaoRedeCliente conexao;
     private String nickname;
+    private String hostConectado = "localhost";
+    private int portaConectada = 5000;
 
     public ClienteChatGui() {
         super("Chat Multiusuário");
@@ -1890,6 +1892,8 @@ public class ClienteChatGui extends JFrame {
     }
 
     private void conectarAoServidor(String host, int porta, String nick) {
+        this.hostConectado = host;
+        this.portaConectada = porta;
         labelNomeMeuPerfil.setText("@" + nick);
         labelStatus.setText("● Conectando a " + host + ":" + porta + "...");
         labelStatus.setForeground(temaAtual.textoSecundario);
@@ -2027,16 +2031,23 @@ public class ClienteChatGui extends JFrame {
         usuariosOnline.clear();
         usuariosOnline.add(BotIaCliente.NICKNAME_PADRAO.toLowerCase(Locale.ROOT));
         usuariosConhecidos.add(BotIaCliente.NICKNAME_PADRAO.toLowerCase(Locale.ROOT));
+        boolean botRealmenteConectadoNoServidor = false;
         if (blocos.length >= 1 && !blocos[0].isBlank()) {
             for (String u : blocos[0].split(",")) {
                 String nome = u.trim().toLowerCase(Locale.ROOT);
                 if (!nome.isEmpty()) {
+                    if (nome.equalsIgnoreCase(BotIaCliente.NICKNAME_PADRAO)) {
+                        botRealmenteConectadoNoServidor = true;
+                    }
                     usuariosOnline.add(nome);
                     if (nickname == null || !nome.equalsIgnoreCase(nickname)) {
                         usuariosConhecidos.add(nome);
                     }
                 }
             }
+        }
+        if (!botRealmenteConectadoNoServidor && (nickname == null || !nickname.equalsIgnoreCase(BotIaCliente.NICKNAME_PADRAO))) {
+            BotIaCliente.garantirBotAtivoEmBackground(hostConectado, portaConectada);
         }
         Set<String> gruposDoServidor = new LinkedHashSet<>();
         if (blocos.length >= 2 && !blocos[1].isBlank()) {

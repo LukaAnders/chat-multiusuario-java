@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
@@ -21,9 +22,10 @@ public class GroqServicoIa implements ServicoIa {
             "https://api.groq.com/openai/v1/chat/completions";
 
     private static final List<String> MODELOS_GROQ = List.of(
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "gemma2-9b-it"
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "qwen/qwen3.8-27b",
+            "llama-3.3-70b-versatile"
     );
 
     private static final Pattern PADRAO_CONTEUDO_RESPOSTA =
@@ -42,7 +44,7 @@ public class GroqServicoIa implements ServicoIa {
     @Override
     public String responder(String remetente, String pergunta) {
         String systemPrompt = "Você é o assistente virtual inteligente integrado ao Chat Multiusuário. "
-                + "Responda de forma prestativa, clara, natural e concisa em português do Brasil (até 400 caracteres, ideal para mensagem de chat).";
+                + "Responda de forma prestativa, clara, natural e concisa em português do Brasil (até 380 caracteres, sem markdown complexo, ideal para mensagem de chat).";
         String userPrompt = "O usuário @" + remetente + " disse: \"" + pergunta + "\"";
 
         int ultimoStatus = 0;
@@ -54,25 +56,30 @@ public class GroqServicoIa implements ServicoIa {
                     + "  {\"role\": \"user\", \"content\": \"" + escaparJson(userPrompt) + "\"}"
                     + "],"
                     + "\"temperature\": 0.7,"
-                    + "\"max_tokens\": 250"
+                    + "\"max_tokens\": 1024"
                     + "}";
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(URL_COMPLETIONS))
-                    .header("Content-Type", "application/json")
+                    .header("Content-Type", "application/json; charset=utf-8")
                     .header("Authorization", "Bearer " + apiKey)
-                    .timeout(Duration.ofSeconds(15))
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonCorpo))
+                    .timeout(Duration.ofSeconds(20))
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonCorpo, StandardCharsets.UTF_8))
                     .build();
 
             try {
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                HttpResponse<String> response = httpClient.send(
+                        request,
+                        HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+                );
                 ultimoStatus = response.statusCode();
 
                 if (ultimoStatus == 200) {
-                    return extrairTextoJson(response.body());
+                    String extraido = extrairTextoJson(response.body());
+                    if (!extraido.isBlank()) {
+                        return extraido;
+                    }
                 }
-                // Se o modelo nao estiver disponivel (400/404/429), tenta o proximo modelo de fallback
                 if (ultimoStatus == 401 || ultimoStatus == 403) {
                     break;
                 }
