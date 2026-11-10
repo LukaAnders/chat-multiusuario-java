@@ -212,18 +212,25 @@ public class BotIaCliente {
     }
 
     public static String lerChaveConfigurada() {
-        String chaveEnv = System.getenv("GEMINI_API_KEY");
-        if (chaveEnv != null && !chaveEnv.isBlank()) {
-            return chaveEnv.trim();
+        String chaveGroqEnv = System.getenv("GROQ_API_KEY");
+        if (chaveGroqEnv != null && !chaveGroqEnv.isBlank()) {
+            return chaveGroqEnv.trim();
+        }
+        String chaveGeminiEnv = System.getenv("GEMINI_API_KEY");
+        if (chaveGeminiEnv != null && !chaveGeminiEnv.isBlank()) {
+            return chaveGeminiEnv.trim();
         }
         if (Files.exists(ARQUIVO_CONFIG_LOCAL)) {
             Properties props = new Properties();
             try (FileInputStream fis = new FileInputStream(ARQUIVO_CONFIG_LOCAL.toFile())) {
                 props.load(fis);
-                String chaveProp = props.getProperty("gemini.api.key");
-                if (chaveProp != null && !chaveProp.isBlank()
-                        && !chaveProp.trim().equalsIgnoreCase("COLE_SUA_CHAVE_AQUI")) {
-                    return chaveProp.trim();
+                String[] propriedadesBusca = {"groq.api.key", "ia.api.key", "gemini.api.key"};
+                for (String nomeProp : propriedadesBusca) {
+                    String valor = props.getProperty(nomeProp);
+                    if (valor != null && !valor.isBlank()
+                            && !valor.trim().equalsIgnoreCase("COLE_SUA_CHAVE_AQUI")) {
+                        return valor.trim();
+                    }
                 }
             } catch (IOException ignored) {
             }
@@ -246,18 +253,31 @@ public class BotIaCliente {
             } catch (IOException ignored) {
             }
         }
-        props.setProperty("gemini.api.key", novaChave != null ? novaChave.trim() : "");
+        String limpa = novaChave != null ? novaChave.trim() : "";
+        props.setProperty("groq.api.key", limpa);
+        props.setProperty("gemini.api.key", limpa);
         try (FileOutputStream fos = new FileOutputStream(ARQUIVO_CONFIG_LOCAL.toFile())) {
-            props.store(fos, "Configuracao local da API Key do Gemini (nao versionado no Git)");
+            props.store(fos, "Configuracao local da API Key de IA (Groq / Gemini - nao versionado no Git)");
         }
+    }
+
+    /**
+     * Instancia automaticamente GroqServicoIa (padrao / chaves gsk_...) ou GeminiServicoIa (chaves AIza...).
+     */
+    public static ServicoIa criarServicoPorChave(String chave) {
+        if (chave == null || chave.isBlank()) {
+            return new SimuladoServicoIa();
+        }
+        String limpa = chave.trim();
+        if (limpa.startsWith("AIza")) {
+            return new GeminiServicoIa(limpa);
+        }
+        return new GroqServicoIa(limpa);
     }
 
     public static ServicoIa resolverServicoIa() {
         String chave = lerChaveConfigurada();
-        if (chave != null && !chave.isBlank()) {
-            return new GeminiServicoIa(chave);
-        }
-        return new SimuladoServicoIa();
+        return criarServicoPorChave(chave);
     }
 
     public static void main(String[] args) throws IOException {
